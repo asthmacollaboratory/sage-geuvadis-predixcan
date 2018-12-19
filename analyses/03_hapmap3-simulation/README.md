@@ -1,5 +1,5 @@
-# Prediction into a simulated admixed population using HapMap3 data from 1000 Genomes 
-Simulation of two ancestral populations and an admixed one using 1KG data.
+# Crosspopulation prediction analysis using HapMap3 data
+Analysis of crosspopulation prediction capacity using a simulation of two ancestral populations and an admixed one from HapMap3 phase 3 data.
 
 ## Prerequisites
 * Python 2.7 (note: scripts here are incompatible with Python 3) 

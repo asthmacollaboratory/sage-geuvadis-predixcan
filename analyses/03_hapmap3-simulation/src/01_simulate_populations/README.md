@@ -11,7 +11,7 @@ This folder contains code to simulate haplotypes from [HapMap3 data](https://mat
 
 See comments in `simulate_populations.sh`.
 
-## Simulation 
+## Running 
 From a Bourne shell, execute
 ```
 ./simulate_populations

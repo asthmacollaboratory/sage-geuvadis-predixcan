@@ -2,6 +2,7 @@
 
 This folder contains code to construct predictive models and test them in various populations.
 Many model scenarios are tested. The relevant parameters are
+
 | Variable | Parameter | Comments |
 | --- | --- | --- |
 | `model_sizes` | number(s) of causal eQTLs in a model | bounded by maximum gene length, but for analysis purposes varies from 1 to 20 |
@@ -19,6 +20,7 @@ Many model scenarios are tested. The relevant parameters are
 Step (2) uses elastic net regression from the `glmnet` package to estimate predictive models in a nested cross-validation scheme.
 The function `cv.glmnet` runs the internal cross-validation loop, while the external folds are partitioned manually.
 Four variables control the cross-validation behavior:
+
 | Variable | Parameter | Comments |
 | --- | --- | --- |
 | `nfolds_external` | number of external cross-validation folds | default: 5 |

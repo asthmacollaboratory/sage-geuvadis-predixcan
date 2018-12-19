@@ -1,2 +1,2 @@
-# Comparison of Predixcan predictions with measured RNA-Seq data in SAGE 
-This repository documents code used in the study of PrediXcan prediction weights for SAGE.
+# Analysis of Predixcan predictions in SAGE 
+This repository documents code used in the comparison of PrediXcan predictions versus RNA-Seq measurements using pilot data from the Study of African Americans, Asthma, Genes, and Environment (SAGE).
