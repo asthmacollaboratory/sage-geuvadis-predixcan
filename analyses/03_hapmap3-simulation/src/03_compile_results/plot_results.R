@@ -97,6 +97,9 @@ make.r2.plot = function(x, k.val = 1, binwidth = 0.005, xlim.lo = 0, xlim.hi = 1
 # script code 
 # ==========================================================================================
 
+# enable plotting of PNG and similar files
+options(bitmapType = 'cairo')
+
 # load data
 x = fread(results.file)
 
@@ -118,40 +121,49 @@ for (k.val in K) {
     r2.facet.plot   = make.r2.plot(x, k.val = k.val)
     corr.facet.plot = make.corr.plot(x, k.val = k.val)
 
-    # make regression lines of correlation by prop_shared_eqtl
-    corr.by.propsharedeqtl.plot = x %>%
+    # can only plot regression lines for one value of k at a time
+    # to scale plot correctly, must discard cases where train and test pops match
+    # lastly, discard any prop_shared_eqtl beyond 0.9 since our k are too small for those values to be meaningful
+    corr.by.propsharedeqtl = x %>%
         dplyr::filter(
             (Train_Pop != Test_Pop) &
             (k == k.val) &
             (prop_shared_eqtl < 0.91) 
         ) %>%
-        ggplot(., aes(x=prop_shared_eqtl, y = Correlation, group = Train_Test, color = Train_Test)) +
-            geom_smooth(aes(linetype = Train_Test), se = T, method = "lm", size = 2.5) +
-            xlab("Proportion of shared eQTLs") +
-            ylab("Spearman Correlation") +
-            ggtitle("Crosspopulation correlations of predicted versus simulated gene expression", subtitle = paste0("Number of causal eQTLs: ", k.val)) +
-            xlim(0, 0.9) +
-            theme(
-                text = element_text(size = 30),
-                panel.background = element_rect(fill = "white"),
-                panel.grid.major = element_line(size = 0.5, linetype = "solid", color = "lightgrey"),
-                panel.grid.minor = element_line(size = 0.25, linetype = "dashed", color = "lightgrey")
-            ) +
-            scale_linetype_manual(
-                name   = "Train to Test",
-                values = c("dashed", "dotted", "solid", "dotted", "solid", "dashed"),
-                breaks = c("YRI to AA", "AA to YRI", "AA to CEU", "CEU to AA", "YRI to CEU", "CEU to YRI")
-            )  +
-            scale_color_manual(
-                name   = "Train to Test",
-                values = c("black", "black", "blue", "blue", "red", "red"),
-                breaks = c("YRI to AA", "AA to YRI", "AA to CEU", "CEU to AA", "YRI to CEU", "CEU to YRI")
-            ) +
-            guides(
-                fill     = guide_legend(keywidth = 1, keyheight = 1),
-                linetype = guide_legend(keywidth = 6, keyheight = 1),
-                color    = guide_legend(keywidth = 6, keyheight = 1)
-            )
+        group_by(Train_Test, gene, prop_shared_eqtl) %>%
+        summarize(Correlation = mean(Correlation, na.rm = TRUE)) %>%
+        select(Train_Test, gene, prop_shared_eqtl, Correlation) %>%
+        as.data.table
+
+    # make regression lines of correlation by prop_shared_eqtl
+    corr.by.propsharedeqtl.plot = ggplot(corr.by.propsharedeqtl, aes(x = prop_shared_eqtl, y = Correlation, group = Train_Test, color = Train_Test)) +
+        #geom_point(alpha = 0.05) +
+        geom_smooth(aes(linetype = Train_Test), se = TRUE, method = "lm", size = 2.5) +
+        xlab("Proportion of shared eQTLs") +
+        ylab("Spearman Correlation") +
+        ggtitle("Crosspopulation correlations of predicted versus simulated gene expression", subtitle = paste0("Number of causal eQTLs: ", k.val)) +
+        xlim(0, 0.9) +
+        theme(
+            text = element_text(size = 30),
+            panel.background = element_rect(fill = "white"),
+            panel.grid.major = element_line(size = 0.5, linetype = "solid", color = "lightgrey"),
+            panel.grid.minor = element_line(size = 0.25, linetype = "dashed", color = "lightgrey")
+        ) +
+        scale_linetype_manual(
+            name   = "Train to Test",
+            values = c("dashed", "dotted", "solid", "dotted", "solid", "dashed"),
+            breaks = c("YRI to AA", "AA to YRI", "AA to CEU", "CEU to AA", "YRI to CEU", "CEU to YRI")
+        )  +
+        scale_color_manual(
+            name   = "Train to Test",
+            values = c("black", "black", "blue", "blue", "red", "red"),
+            breaks = c("YRI to AA", "AA to YRI", "AA to CEU", "CEU to AA", "YRI to CEU", "CEU to YRI")
+        ) +
+        guides(
+            fill     = guide_legend(keywidth = 1, keyheight = 1),
+            linetype = guide_legend(keywidth = 6, keyheight = 1),
+            color    = guide_legend(keywidth = 6, keyheight = 1)
+        )
 
     # save all plots to file
     ggsave(filename = corr.facet.plot.path, plot = corr.facet.plot, dpi = 300, width = 10, height = 10, units = "in")
@@ -185,5 +197,25 @@ x.dunn = x %>%
 		(prop_shared_eqtl < 0.91) &  
 		(Train_Pop != Test_Pop)
 	) %>%
+    group_by(Train_Test, gene, prop_shared_eqtl) %>%
+    summarize(Correlation = mean(Correlation, na.rm = TRUE)) %>%
+    select(Train_Test, gene, prop_shared_eqtl, Correlation) %>%
 	dunn.test(x = .$Correlation, g = .$Train_Test, method = "bonferroni")
-print(data.frame(x.dunn[-1]))
+dunn.results = data.table(data.frame(x.dunn[-1]))
+dunn.results.path = file.path(output.dir, paste0("1kg.sims.corrs.dunn.k", k.val, ".txt"))
+fwrite(x = dunn.results, file = dunn.results.path, sep = "\t")
+
+# want to produce table of results for imputing into same pop
+# this is useful as supp table for manuscript
+samepop.results = x %>%
+    filter(
+        Train_Pop == Test_Pop &
+        prop_shared_eqtl < 0.91
+    ) %>% 
+    group_by(Train_Pop, Test_Pop, k, gene, prop_shared_eqtl) %>%
+    summarize(Correlation = mean(Correlation, na.rm = TRUE)) %>%
+    group_by(Train_Pop, Test_Pop, k, prop_shared_eqtl) %>%
+    summarize(Correlation_Mean = mean(Correlation), Correlation_StdErr = sd(Correlation)) %>%
+    as.data.table
+samepop.results.path = file.path(output.dir, paste0("1kg.sims.corrs.by.propsharedeqtl.samepop.summary.txt"))
+fwrite(x = samepop.results, file = samepop.results.path, sep = "\t")
