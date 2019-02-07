@@ -15,13 +15,14 @@
 # ==========================================================================================
 # BASH script settings
 # ==========================================================================================
-set -e      # script will exit on error
-set -u      # script will exit if it sees an uninitialized variable
-ulimit -c 0 # user limits: -c covers the max size of core files created
+set -o errexit # set -e, script will exit on error
+set -o nounset # set -u, script will exit if it sees an uninitialized variable
+set -o xtrace  # set -x, script will track which command is currently running
+#ulimit -c 0 # user limits: -c covers the max size of core files created
 
 
 # ==========================================================================================
-# script variables (passed from QSUB command) 
+# script variables (passed from QSUB command)
 # ==========================================================================================
 
 # binaries
@@ -36,7 +37,6 @@ R_predict_new_pop=${R_predict_new_pop}
 logdir=${logdir}
 outdir=${outdir}
 gctadir=${gctadir}
-imputegenodir=${imputegenodir}
 resultsdir=${resultsdir}
 resultssubdir=${resultssubdir}
 tmpdir=${tmpdir}
@@ -46,6 +46,7 @@ genelist=${genelist}
 subjectids=${subjectids}
 exprfile=${exprfile}
 subjectids_altpop=${subjectids_altpop}
+bedfile_pfx=${bedfile_pfx}
 
 # other variables
 alpha=${alpha}
@@ -60,19 +61,19 @@ nfolds=${nfolds}
 seed=${seed}
 
 # ==========================================================================================
-# executable code 
+# executable code
 # ==========================================================================================
 
-# start by noting current date, time, and process hostname 
+# start by noting current date, time, and process hostname
 echo "Date: $(date)"
 echo "Host name: $(hostname)"
 
 # parse current gene
 # NOTA BENE: in general BASH arrays are 0-indexed while SGE tasks are 1-indexed
-# since $genelist lacks a header the genes are essentially 1-indexed
-# must subtract 1 from $SGE_TASK_ID to match correct gene 
-# in general, be mindful when indexing BASH arrays with SGE task IDs 
-i=$(expr ${SGE_TASK_ID} - 1)
+# since $genelist lacks a header then $genelist is essentially 0-indexed
+# must subtract 1 from $SGE_TASK_ID to match correct gene
+# in general, be mindful when indexing BASH arrays with SGE task IDs
+i=$(expr ${SGE_TASK_ID} - 1) || true  ## guard against exit status 0
 read -a genes <<< $(cat ${genelist} | cut -d " " -f 1)
 gene=${genes[${i}]}
 
@@ -84,11 +85,11 @@ genepath="${outdir}/${gene}"
 genopfx="${genepath}/${gene}"
 mkdir -p ${genepath}
 
-# create file paths to PLINK output 
+# create file paths to PLINK output
 rawpath="${genopfx}.raw"
 bimfile="${genopfx}.bim"
 
-# also create paths for 
+# also create paths for
 genopfx_altpop="${genepath}/${gene}_${altpop}"
 rawpath_altpop="${genopfx_altpop}.raw"
 
@@ -106,20 +107,24 @@ echo -e "\tpredictionfile = ${predictionfile}"
 echo -e "\tlambdafile = ${lambdafile}"
 echo -e "\tpredictionfile_altpop = ${predictionfile_altpop}"
 
-# parse info for current gene 
+# parse info for current gene
 mygeneinfo=$(grep ${gene} ${genelist})
 chr=$(echo ${mygeneinfo} | cut -f 2 -d " ")
 startpos=$(echo ${mygeneinfo} | cut -f 3 -d " ")
 endpos=$(echo ${mygeneinfo} | cut -f 4 -d " ")
 
-# with $chr we can point to the correct BED/BIM/BAM files
-bedfile="${imputegenodir}/GEUVADIS.ALLCHR.PH1PH2_465.IMPFRQFILT_BIALLELIC_PH.annotv2.genotypes.rsq_0.8_maf_0.01_hwe_0.00001_geno_0.05"
+echo "Information for current gene:"
+echo -e "\tname: ${gene}"
+echo -e "\tchr: ${chr}"
+echo -e "\tstart: ${startpos}"
+echo -e "\tend: ${endpos}"
 
 # create a PLINK RAW file
 # this codes the dosage format required for glmnet
 # here we use the genome-wide GEUVADIS genotype data with rsIDs
+echo "Subsetting genotypes in ${gene} for training pop ${pop}..."
 $PLINK \
-    --bfile ${bedfile} \
+    --bfile ${bedfile_pfx} \
     --chr ${chr} \
     --from-bp ${startpos} \
     --to-bp ${endpos} \
@@ -130,15 +135,15 @@ $PLINK \
     --out ${genopfx} \
     --threads ${nthreads} \
     --memory ${memory_limit_mb} \
-    --keep ${subjectids} \
-    --silent ## turn this off first when debugging
+    --keep ${subjectids} #\
+    #--silent ## turn this off first when debugging
 
 # call glmnet script
-# the method used depends on the alpha value: 
+# the method used depends on the alpha value:
 # alpha = "0.5" --> elastic net regression
 # alpha = "1.0" --> LASSO regression
 # alpha = "0.0" --> ridge regression
-echo "starting R script to compute new GTEx weights..."
+echo "starting R script to compute new prediction weights..."
 $Rscript $R_compute_new_weights \
     --genotype-dosage-file ${rawpath} \
     --expression-file ${exprfile} \
@@ -146,7 +151,7 @@ $Rscript $R_compute_new_weights \
     --prediction-output ${predictionfile} \
     --lambda-output ${lambdafile} \
     --alpha ${alpha} \
-    --beta-file ${weightsfile} \
+    --beta-output ${weightsfile} \
     --BIM-file ${bimfile} \
     --num-folds ${nfolds} \
     --random-seed ${seed}
@@ -156,23 +161,25 @@ $Rscript $R_compute_new_weights \
 RETVAL=$?
 
 # get list of SNPs to subset in alternate population
+echo "Constructing list of SNPs to extract in testing population ${altpop}..."
 snps_to_extract="${tmpdir}/snps_to_extract_${altpop}_${gene}.txt"
-cat ${weightsfile} | cut -f 3 | grep "rs" | sort | uniq > $snps_to_extract 
+cat ${weightsfile} | cut -f 3 | grep "rs" | sort | uniq > $snps_to_extract
 
 
 # create a PLINK RAW file, but this time for the testing population
 # this codes the dosage format required for glmnet
 # here we use the genome-wide GEUVADIS genotype data with rsIDs
+echo "Subsetting genotypes in ${gene} for the testing population ${altpop}..."
 $PLINK \
-    --bfile $bedfile \
+    --bfile ${bedfile_pfx} \
     --recode A \
     --make-bed \
     --out ${genopfx_altpop} \
     --threads ${nthreads} \
     --memory ${memory_limit_mb} \
     --keep ${subjectids_altpop} \
-    --extract ${snps_to_extract} \
-    --silent ## turn this off first when debugging
+    --extract ${snps_to_extract} #\
+    #--silent ## turn this off first when debugging
 
 # note the following commented PLINK options: why are they not used?
 # we want to use all possible SNPs from training pop
@@ -186,26 +193,28 @@ $PLINK \
 #    --to-bp ${endpos} \
 
 # predict from training pop to testing pop
+echo "Predicting into the testing population ${altpop}..."
 $Rscript $R_predict_new_pop \
     --beta-file ${weightsfile} \
     --genotype-dosage-file ${rawpath_altpop} \
     --prediction-output ${predictionfile_altpop} \
-    --gene-name ${gene} 
+    --gene-name ${gene}
 
 # query return value of previous command
-let "RETVAL+=$?"
+let "RETVAL+=$?" || true  ## need " || true" to satisfy "set -e"
 
 # also perform prediction from training pop into itself
 # different from true out-of-sample populations but systematically same as before
 # want this to compare against quality of out-of-sample pops
+echo "Predicting into the training population..."
 $Rscript $R_predict_new_pop \
     --beta-file ${weightsfile} \
     --genotype-dosage-file ${rawpath} \
     --prediction-output ${predictionfile_samepop} \
-    --gene-name ${gene} 
+    --gene-name ${gene}
 
 # query return value of previous command
-let "RETVAL+=$?"
+let "RETVAL+=$?" || true
 
 # if return value is not 0, then previous command did not exit correctly
 # create a status file notifying of error

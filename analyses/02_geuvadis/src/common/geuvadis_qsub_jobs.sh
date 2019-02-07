@@ -13,13 +13,13 @@
 # ==============================================================================================================================
 
 # ==============================================================================================================================
-# 0. variables for this script only 
+# 0. variables for this script only
 # ==============================================================================================================================
 
 # job names
-build_models="glmnet.${glmmethod}.${pop}"
-collect_weights="glmnet.${glmmethod}.collect.weights.${pop}"
-postprocess_results="glmnet.${glmmethod}.postprocess.${pop}"
+build_models="glmnet.${glmmethod}.${pop}.to.${altpop}"
+collect_weights="glmnet.${glmmethod}.collect.weights.${pop}.to.${altpop}"
+postprocess_results="glmnet.${glmmethod}.postprocess.${pop}.to.${altpop}"
 
 # ==============================================================================================================================
 # 1. compute new weights from a training set of genotypes and gene expression measures
@@ -47,9 +47,8 @@ outdir=${outdir}
 resultssubdir=${resultssubdir}
 resultsdir=${resultsdir}
 gctadir=${gctadir}
-imputegenodir=${imputegenodir}
 tmpdir=${tmpdir}
-qsub_variable_list="${qsub_variable_list},logdir=${logdir},outdir=${outdir},resultssubdir=${resultssubdir},resultsdir=${resultsdir},gctadir=${gctadir},imputegenodir=${imputegenodir},tmpdir=${tmpdir}"
+qsub_variable_list="${qsub_variable_list},logdir=${logdir},outdir=${outdir},resultssubdir=${resultssubdir},resultsdir=${resultsdir},gctadir=${gctadir},tmpdir=${tmpdir}"
 
 # add filepaths
 genelist=${genelist}
@@ -57,7 +56,8 @@ subjectids=${subjectids}
 exprfile=${exprfile}
 subjectids_altpop=${subjectids_altpop}
 phenofile=${phenofile}
-qsub_variable_list="${qsub_variable_list},genelist=${genelist},subjectids=${subjectids},exprfile=${exprfile},subjectids_altpop=${subjectids_altpop},phenofile=${phenofile}"
+bedfile_pfx=${bedfile_pfx}
+qsub_variable_list="${qsub_variable_list},genelist=${genelist},subjectids=${subjectids},exprfile=${exprfile},subjectids_altpop=${subjectids_altpop},phenofile=${phenofile},bedfile_pfx=${bedfile_pfx}"
 
 # add numeric or string variables
 alpha=${alpha}
@@ -69,17 +69,18 @@ memory_limit_mb=${memory_limit_mb}
 pop=${pop}
 altpop=${altpop}
 nfolds=${nfolds}
-qsub_variable_list="${qsub_variable_list},alpha=${alpha},glmmethod=${glmmethod},maf=${maf},hwe=${hwe},nthreads=${nthreads},memory_limit_mb=${memory_limit_mb},pop=${pop},altpop=${altpop},nfolds=${nfolds}"
+seed=${seed}
+qsub_variable_list="${qsub_variable_list},alpha=${alpha},glmmethod=${glmmethod},maf=${maf},hwe=${hwe},nthreads=${nthreads},memory_limit_mb=${memory_limit_mb},pop=${pop},altpop=${altpop},nfolds=${nfolds},seed=${seed}"
 
 # execute
-qsub -N ${build_models} \
-     -v ${qsub_variable_list} \
+qsub -N "${build_models}" \
+     -v "${qsub_variable_list}" \
      -t 1-${nGenes} \
-     -e ${logdir} \
-     -o ${logdir} \
-     -l mem_free=${memory_limit} \
-     -l scratch=${scratch_memory} \
-     -l h_rt=${h_rt} \
+     -e "${logdir}" \
+     -o "${logdir}" \
+     -l mem_free="${memory_limit}" \
+     -l scratch="${scratch_memory}" \
+     -l h_rt="${h_rt}" \
      ${BASH_compute_weights}
 
 
@@ -95,13 +96,12 @@ h_rt="06:00:00"
 
 # build variable list
 # start with directories
-glmnetdir=${glmnetdir}
 logdir=${logdir}
 outdir=${outdir}
 resultsdir=${resultsdir}
 resultssubdir=${resultssubdir}
 tmpdir=${tmpdir}
-qsub_variable_list="glmnetdir=${glmnetdir},logdir=${logdir},outdir=${outdir},resultsdir=${resultsdir},resultssubdir=${resultssubdir},tmpdir=${tmpdir}"
+qsub_variable_list="logdir=${logdir},outdir=${outdir},resultsdir=${resultsdir},resultssubdir=${resultssubdir},tmpdir=${tmpdir}"
 
 # add file paths}
 weightsfile=${weightsfile}
@@ -118,16 +118,16 @@ glmmethod=${glmmethod}
 pop=${pop}
 altpop=${altpop}
 predictionfile_header=${predictionfile_header}
-qsub_variable_list="${qsub_variable_list},glmmethod=${glmmethod},pop=${pop},altpop=${altpop},predictionfile_header=${predictionfile_header}"
+qsub_variable_list="${qsub_variable_list},glmmethod=${glmmethod},pop=${pop},altpop=${altpop},predictionfile_header=\"${predictionfile_header}\""
 
 # execute
-qsub -N ${collect_weights} \
-    -hold_jid ${build_models} \ 
-    -v ${qsub_variable_list} \
-    -o ${logdir} \
-    -e ${logdir} \
-    -l mem_free=${memory_limit} \
-    -l h_rt=${h_rt} \
+qsub -N "${collect_weights}" \
+    -hold_jid "${build_models}" \
+    -v "${qsub_variable_list}" \
+    -o "${logdir}" \
+    -e "${logdir}" \
+    -l mem_free="${memory_limit}" \
+    -l h_rt="${h_rt}" \
     ${BASH_collect_weights}
 
 # ==============================================================================================================================
@@ -141,17 +141,15 @@ Rscript=${Rscript}
 qsub_variable_list="Rscript=${Rscript}"
 
 # external scripts
-R_glmnet_postprocess=${R_glmnet_postprocess}
-qsub_variable_list="${qsub_variable_list},R_glmnet_postprocess=${R_glmnet_postprocess}"
+R_postprocess_weights=${R_postprocess_weights}
+qsub_variable_list="${qsub_variable_list},R_postprocess_weights=${R_postprocess_weights}"
 
 # directories
-glmnetdir=${glmnetdir}
 logdir=${logdir}
-qsub_variable_list="${qsub_variable_list},glmnetdir=${glmnetdir},logdir=${logdir}"
+qsub_variable_list="${qsub_variable_list},logdir=${logdir}"
 
 # file paths
 weightsfile=${weightsfile}
-newweightsfile=${newweightsfile}
 num_pred_file=${num_pred_file}
 predictionfile_altpop=${predictionfile_altpop}
 altpop_exprfile=${altpop_exprfile}
@@ -161,7 +159,10 @@ predictionfile=${predictionfile}
 exprfile=${exprfile}
 out_lm_file=${out_lm_file}
 out_genelm_file=${out_genelm_file}
-qsub_variable_list="${qsub_variable_list},weightsfile=${weightsfile},newweightsfile=${newweightsfile},num_pred_file=${num_pred_file},predictionfile_altpop=${predictionfile_altpop},altpop_exprfile=${altpop_exprfile},altpop_out_lm_file=${altpop_out_lm_file},altpop_out_genelm_file=${altpop_out_genelm_file},predictionfile=${predictionfile},exprfile=${exprfile},out_lm_file=${out_lm_file},out_genelm_file=${out_genelm_file}"
+predictionfile_samepop=${predictionfile_samepop}
+samepop_out_lm_file=${samepop_out_lm_file}
+samepop_out_genelm_file=${samepop_out_genelm_file}
+qsub_variable_list="${qsub_variable_list},weightsfile=${weightsfile},newweightsfile=${newweightsfile},num_pred_file=${num_pred_file},predictionfile_altpop=${predictionfile_altpop},altpop_exprfile=${altpop_exprfile},altpop_out_lm_file=${altpop_out_lm_file},altpop_out_genelm_file=${altpop_out_genelm_file},predictionfile=${predictionfile},exprfile=${exprfile},out_lm_file=${out_lm_file},out_genelm_file=${out_genelm_file},predictionfile_samepop=${predictionfile_samepop},samepop_out_lm_file=${samepop_out_lm_file},samepop_out_genelm_file=${samepop_out_genelm_file}"
 
 # variables
 glmmethod=${glmmethod}
@@ -172,8 +173,8 @@ qsub_variable_list="${qsub_variable_list},glmmethod=${glmmethod},pop=${pop},nsam
 
 # execute
 qsub -N ${postprocess_results} \
-    -hold_jid ${build_models},${collect_weights} \ 
-    -v ${qsub_variable_list} \ 
+    -hold_jid ${build_models},${collect_weights} \
+    -v ${qsub_variable_list} \
     -o ${logdir} \
     -e ${logdir} \
     -l mem_free=${memory_limit} \

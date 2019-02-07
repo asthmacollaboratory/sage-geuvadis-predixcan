@@ -1,15 +1,17 @@
 ##!/usr/bin/env Rscript --vanilla
 
-# ==============================================================================================================================
+# ==========================================================================================
 # load libraries
-# ==============================================================================================================================
+# ==========================================================================================
+suppressMessages(library(methods))
 suppressMessages(library(dplyr))
 suppressMessages(library(data.table))
+suppressMessages(library(optparse))
 
 
-# ==============================================================================================================================
+# ==========================================================================================
 # parse command line arguments 
-# ==============================================================================================================================
+# ==========================================================================================
 
 option_list = list(
     make_option(
@@ -34,18 +36,11 @@ option_list = list(
         metavar = "character"
     ),
     make_option(
-        c("-ns", "--num-samples-file"),
-        type    = "character",
-        default = NULL,
-        help    = "File where predictions from glmnet will be saved.",
-        metavar = "character"
-    ),
-    make_option(
         c("-s", "--num-samples"),
-        type    = "character",
+        type    = "integer",
         default = NULL,
         help    = "Number of samples in the training set.",
-        metavar = "character"
+        metavar = "integer"
     ),
     make_option(
         c("-p", "--prediction-file"),
@@ -58,7 +53,7 @@ option_list = list(
         c("-r", "--expression-file"),
         type    = "character",
         default = NULL,
-        help    = "File with table of gene expression measurements in the training population.",
+        help    = "Table of gene expression measurements in the training population.",
         metavar = "character"
     ),
     make_option(
@@ -102,17 +97,40 @@ option_list = list(
         default = NULL,
         help    = "Output file for saving a table of linear modeling results for each gene in the testing population.",
         metavar = "character"
+    ),
+    make_option(
+        c("-Tp", "--train-pop-prediction-file"),
+        type    = "character",
+        default = NULL,
+        help    = "File with predictions for the training population.",
+        metavar = "character"
+    ),
+    make_option(
+        c("-Tol", "--train-pop-out-lm-file"),
+        type    = "character",
+        default = NULL,
+        help    = "Output file for saving linear modeling results across genes in the training population.",
+        metavar = "character"
+    ),
+    make_option(
+        c("-Tog", "--train-pop-out-genelm-file"),
+        type    = "character",
+        default = NULL,
+        help    = "Output file for saving a table of linear modeling results for each gene in the training population.",
+        metavar = "character"
     )
 )
 opt_parser = OptionParser(option_list = option_list)
 opt = parse_args(opt_parser, convert_hyphens_to_underscores = TRUE)
 
+cat("Parsed options:\n")
+print(opt)
+
 # parse command line arguments
 weightsfile            = opt$beta_file 
-#new.weightsfile        = args[2]
-discard.ratio          = opt$discard_ratio 
+discard.ratio          = as.double(opt$discard_ratio) 
 num.pred.file          = opt$num_predictions_file 
-num.samples            = opt$num_samples 
+num.samples            = as.integer(opt$num_samples) 
 prediction.file        = opt$prediction_file
 exprfile               = opt$expression_file 
 out.lm.file            = opt$out_lm_file 
@@ -121,15 +139,19 @@ altpop.pred.file       = opt$test_pop_prediction_file
 altpop.exprfile        = opt$test_pop_expression_file 
 altpop.out.lm.file     = opt$test_pop_out_lm_file 
 altpop.out.genelm.file = opt$test_pop_out_genelm_file 
+samepop.pred.file       = opt$train_pop_prediction_file
+samepop.out.lm.file     = opt$train_pop_out_lm_file
+samepop.out.genelm.file = opt$train_pop_out_genelm_file
 
 # ensure that numeric arguments are actually numbers
 discard.ratio = as.numeric(discard.ratio)
 num.samples   = as.numeric(num.samples)
 
-# ==============================================================================================================================
+# ==========================================================================================
 # subroutines
-# ==============================================================================================================================
+# ==========================================================================================
 
+# possible to rewrite with dplyr, purrr, and broom?
 compute.gene.lm = function(data, out.file, genes = unique(sort(data$Gene))){
     ngenes = length(genes)
     out.matrix     = matrix(NA, ngenes, 4)
@@ -151,9 +173,9 @@ compute.gene.lm = function(data, out.file, genes = unique(sort(data$Gene))){
     return()
 }
 
-# ==============================================================================================================================
+# ==========================================================================================
 # script code 
-# ==============================================================================================================================
+# ==========================================================================================
 
 # open weights file
 x = fread(weightsfile)
@@ -198,23 +220,10 @@ geuvadis.predictions.sub = geuvadis.predictions[geuvadis.predictions$Gene %in% n
 cat("subsetting expression file to well-predicted genes...\n") 
 geuvadis.rnaseq.sub = geuvadis.rnaseq[geuvadis.rnaseq$Gene %in% geuvadis.predictions.sub$Gene,]
 
-# sort the genes before transposing
-# could probably do this more stably with melt + dcast...?
-cat("sorting and transposing expressions...\n")
-setorder(geuvadis.rnaseq.sub, Gene)
-trnaseq = data.table(t(geuvadis.rnaseq.sub[,-c(1)]))
-colnames(trnaseq) = geuvadis.rnaseq.sub$Gene
-trnaseq = cbind(colnames(geuvadis.rnaseq.sub)[-1], trnaseq)
-colnames(trnaseq)[1] = "SubjectID"
-
-# put column names and a column of sample names
-# make sure to sort by sample
-setorder(trnaseq, SubjectID)
-
 # melt the predicted and measured expression data.tables
 cat("melting both prediction and measured expression data tables...\n")
-pred.melted   = melt(geuvadis.predictions.sub, id.vars = c("Gene"))
-rnaseq.melted = melt(geuvadis.rnaseq.sub, id.vars = "Gene")
+pred.melted   = melt(geuvadis.predictions.sub, id.vars = "Gene", variable.name = "SubjectID", value.name = "Predicted_Expr")
+rnaseq.melted = melt(geuvadis.rnaseq.sub, id.vars = "Gene", variable.name = "SubjectID", value.name = "Measured_Expr")
 
 # standardize their column names too
 colnames(pred.melted)   = c("Gene", "SubjectID", "Predicted_Expr")
@@ -252,13 +261,25 @@ colnames(altpop.predictions) = c("Gene", "SubjectID", "Predicted_Expr")
 altpop.rnapred = merge(altpop.expr.melt, altpop.predictions, by = c("Gene", "SubjectID"))
 
 # first model: regress measured, predicted expression in all (gene, subject) pairs
-cat("first linear model in other population: regress predicted onto measured expression for all (gene, subject) pairs\n")  
+cat("first linear model in testing population: regress predicted onto measured expression for all (gene, subject) pairs\n")  
 sink(altpop.out.lm.file)
 print(summary(lm(Predicted_Expr ~ Measured_Expr, data = altpop.rnapred)))
 sink()
 
-cat("second linear model in other population: individual regressions for each gene\n")
+cat("second linear model in testing population: individual regressions for each gene\n")
 compute.gene.lm(altpop.rnapred, altpop.out.genelm.file)
+
+# repeat for training population
+# this essentially uses in-sample information so it's a bit fishy
+samepop.predictions = fread(samepop.pred.file)
+colnames(samepop.predictions) = c("Gene", "SubjectID", "Predicted_Expr")
+samepop.rnapred = merge(rnaseq.melted, samepop.predictions, by = c("Gene", "SubjectID"))
+cat("first linear model in training population: regress predicted onto measured expression for all (gene, subject) pairs\n")  
+sink(samepop.out.lm.file)
+print(summary(lm(Predicted_Expr ~ Measured_Expr, data = samepop.rnapred)))
+sink()
+cat("second linear model in training population: individual regressions for each gene\n")
+compute.gene.lm(samepop.rnapred, samepop.out.genelm.file)
 
 # show any warnings
 cat("any warnings?\n")

@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript --vanilla
-# ==============================================================================================================================
+# ==========================================================================================
 # copyright Asthma Collaboratory (2018)
 # coded by Kevin L. Keys
 #
@@ -8,15 +8,17 @@
 # heavily modified from original PrediXcan script by Heather E. Wheeler (2015-02-02)
 # https://github.com/hakyim/PrediXcan/blob/master/Paper-Scripts/Heather/DGN-calc-weights/01_imputedDGN-WB_CV_elasticNet.r
 # in Github repo, see runscripts/run_01_imputedDGN-WB_CV_elasticNet_chr*sh and qsub.txt for tarbell job submission scripts
-# ==============================================================================================================================
+# ==========================================================================================
 
-# ==============================================================================================================================
+# ==========================================================================================
 # load libraries
-# ==============================================================================================================================
+# ==========================================================================================
 
 suppressMessages(library(methods))
 suppressMessages(library(glmnet))
 suppressMessages(library(data.table))
+suppressMessages(library(optparse))
+suppressMessages(library(caret))
 
 # error tracking
 options(show.error.locations = TRUE)
@@ -122,9 +124,12 @@ compute.new.weights = function(){
     alpha  = as.numeric(alpha)
     nfolds = as.numeric(nfolds)
 
-    # ==========================================================================================================================
+    # set random seed
+    set.seed(seed)
+
+    # ==========================================================================================
     # Directories & Variables
-    # ==========================================================================================================================
+    # ==========================================================================================
 
     # which gene are we analyzing?
     cat(paste0("Building predictive model for gene ", gene.name, " with ", nfolds, "-fold crossvalidation.\n"))
@@ -155,6 +160,17 @@ compute.new.weights = function(){
     # preallocate a vector to store predicted expression levels
     n = dim(ty)[1]
     y.pred = matrix(NA,n,1)
+
+    # ensure that nfolds <= length(y) - 1
+    # if not, then adjust and notify accordingly
+    cat("Ensuring that nfolds <= length(y) - 1...\n")
+    if ( nfolds <= n - 1) {
+        cat("...looks good.\n")
+    } else {
+        cat("nfolds = ", nfolds, " but length(y) - 1 = ", n - 1, ", adjusting accordingly...\n")
+        nfolds = n - 1
+        cat("now nfolds = ", nfolds, "\n")
+    }
 
     # prepare the gene output file that will contain the prediction and lambda for each held-out sample
     # put a header on it for bookkeeping
@@ -243,9 +259,18 @@ compute.new.weights = function(){
                     nlambda = 100
                     lambda  = exp(seq(log(0.01), log(lam.max), length.out=nlambda))
 
+                    # fix cross-validation folds for reproducibility
+                    # note: this makes "nfolds" argument to cv.glmnet redundant
+                    flds    = createFolds(y, k = nfolds, list = TRUE, returnTrain = FALSE)
+                    foldids = rep(1, length(y))
+                    for (i in 1:nfolds) {
+                        foldids[flds[[i]]] = i
+                    }
+
                     # cross-validate!
                     cat(paste0("crossvalidating sample ", held.out.sample.name, "..."))
-                    my.glmnet = cv.glmnet(x=X, y=y, nfolds=nfolds, family = "gaussian", alpha=alpha, keep=TRUE, grouped = FALSE, dfmax=n, pmax=n, lambda.min.ratio = 0.01, nlambda=nlambda)
+                    #my.glmnet = cv.glmnet(x=X, y=y, nfolds=nfolds, family = "gaussian", alpha=alpha, keep=TRUE, grouped = FALSE, dfmax=n, pmax=n, lambda.min.ratio = 0.01, nlambda=nlambda)
+                    my.glmnet = cv.glmnet(x=X, y=y, nfolds=nfolds, family = "gaussian", alpha=alpha, keep=TRUE, grouped = FALSE, dfmax=n, pmax=n, lambda.min.ratio = 0.01, nlambda=nlambda, foldid=foldids)
                     cat(paste0("done at timestamp ", Sys.time(), "\n"))
 
                     # pull info to find best lambda
@@ -319,9 +344,9 @@ compute.new.weights = function(){
     return()
 }
 
-# ==============================================================================================================================
+# ==========================================================================================
 # Executable script code
-# ==============================================================================================================================
+# ==========================================================================================
 
 # timestamp
 cat(paste("Begin estimating prediction weights at date and time ", Sys.time(), "\n", sep = "") )
@@ -333,6 +358,8 @@ compute.new.weights()
 # note that glmnet may complain whenever its Fortran routine executes early on the lambda path
 # that is ok
 # if it complains about missing Fortran routines, then take them seriously
+# the latter warnings indicate a missing glmnet installation, a mismatched Rscript/glmnet version,
+# or an unexpected version of Rscript (e.g. 3.5 vs. 3.4)
 cat("any warnings?\n")
 warnings()
 

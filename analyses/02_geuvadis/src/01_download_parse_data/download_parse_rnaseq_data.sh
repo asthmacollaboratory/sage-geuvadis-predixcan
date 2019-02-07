@@ -19,7 +19,7 @@ set -u  ## script will exit if it sees an uninitialized variable
 # ==========================================================================================
 thisdir="$(dirname $(readlink -f $0))"
 
-analysisdir="${thisdir}/../../analysis"
+analysisdir="${thisdir}/../analysis"
 datadir="${analysisdir}/data"
 geuvadis_rnaseqdir="${datadir}/rnaseq"
 datafiles_dir="${thisdir}/../../datafiles"
