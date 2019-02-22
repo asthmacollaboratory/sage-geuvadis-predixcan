@@ -1,0 +1,23 @@
+### Editor ###
+## Vim & Emacs temp files:
+.*sw[op]
+*~
+
+### Mac OS X ###
+## Mac OS X metadata files:
+*.DS_Store
+
+### Directories ###
+## ignore analysis directory, results, etc.:
+analysis/
+
+### Results ###
+
+# ignore images
+*.png
+*.pdf
+*.svg
+*.jpg
+
+# ignore results
+*.Rdata
