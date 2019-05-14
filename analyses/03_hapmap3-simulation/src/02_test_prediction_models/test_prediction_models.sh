@@ -20,6 +20,7 @@
 # ==========================================================================================
 set -e  ## script will exit on error
 set -u  ## script will exit if it sees an uninitialized variable
+#set -x
 
 
 # ==========================================================================================
@@ -64,16 +65,16 @@ nfolds_internal=10
 nfolds_parallel=1
 
 # these are the parameters used for the manuscript
-#model_sizes=(1 5 10 20)
-#seeds=$(seq 2018 2117)
-#props=(0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 0.99)
-#nthreads=24  ## this is fed to the PYTHON script
+model_sizes=(1 5 10 20)
+seeds=$(seq 2018 2117)
+props=(0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9) ## prop = 1.0 is tested separately
+nthreads=24  ## this is fed to the PYTHON script to run $NTHREADS jobs in parallel
 
 # use these parameters for testing the script
-model_sizes=(1 5 10 20)
-seeds=(2018)
-props=(0.5)
-nthreads=1
+#model_sizes=(10)
+#seeds=(2018)
+#props=(0.5)
+#nthreads=1
 
 
 # ==========================================================================================
@@ -87,8 +88,8 @@ mkdir -p ${output_data_dir}
 
 # get list of gene names to use
 # use the genelist from step 1
-#genenames=$(tail -n +2 $genelist | cut -f 2 | head -n 100)
-genenames=$(tail -n +2 $genelist | cut -f 2 | head -n 1)
+genenames=$(tail -n +2 $genelist | cut -f 2 | head -n 100)
+#genenames=$(tail -n +2 $genelist | cut -f 2 | head -n 1)
 
 # remove previous joblist if it exists
 # then make empty new one
@@ -126,13 +127,12 @@ for gene in ${genenames[@]}; do
 
             # now do case where all pops share eQTLs
             same_eqtls="TRUE"
-            prop="1.0" ## this is placeholder, it has no function when same_eqtls = TRUE
+            prop="1.0" ## this is merely naming placeholder, it has no function when same_eqtls = TRUE
             for k in ${model_sizes[@]}; do
                 nohup_out="${output_text_dir}/${gene}.model-${same_eqtls}.effects-${same_effects}.k-${k}.seed-${seed}.prop-${prop}.out"
                 nohup_err="${output_text_dir}/${gene}.model-${same_eqtls}.effects-${same_effects}.k-${k}.seed-${seed}.prop-${prop}.err"
                 echo "$RSCRIPT $R_simulate_crosspop_pred --gene-name \"${gene}\" --genotypes-pop1 \"${ceu_file}\" --genotypes-pop2 \"${yri_file}\" --genotypes-admix \"${aa_file}\" --output-directory \"${output_data_dir}\" --same-eqtls ${same_eqtls} --same-eqtl-effects ${same_effects} --nfolds-internal ${nfolds_internal} --nfolds-external ${nfolds_external} --nfolds-parallel ${nfolds_parallel} --num-eqtls ${k} --random-seed ${seed} --fraction-overlapping-eqtls ${prop} > ${nohup_out} 2> ${nohup_err}" >> ${simulation_joblist} 
             done
-
         done
     fi
 done

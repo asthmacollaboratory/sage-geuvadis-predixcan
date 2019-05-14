@@ -39,6 +39,7 @@ The analysis is divded into three parts, each with its own documentation:
 1. Simulating haplotypes ([docs](./src/01_simulate_populations/README.md))
 2. Estimating and evaluating prediction models ([docs](./src/02_test_prediction_models/README.md))
 3. Compiling and plotting results ([docs](./src/03_compile_results/README.md))
+4. Simulating a TWAS ([docs](./src/04_simulate_twas/README.md))
 
 The analysis will generate a directory `./src/analysis` with all output files.
 
@@ -50,7 +51,7 @@ Note that step (2) uses a parallel computing framework that sends jobs into the 
 
 
 ## Notes
-Simulations from step (1) are not reproducible. Simulated data used in the full analysis can be found [here](#).
+Simulations from step (1) are not reproducible. Simulated data used in the full analysis can be found [here](https://ucsf.box.com/s/fgjizb0uiopr6sw76tf0u5beg7js2l36).
 
 The parameters for testing different prediction scenarios in step (2) are set for demonstration purposes only.
 
