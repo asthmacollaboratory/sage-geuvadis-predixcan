@@ -11,3 +11,6 @@
 
 # run third step
 ./03_compile_results/./compile_results.sh
+
+# run fourth step
+./04_simulate_twas/./simulate_twas.sh

@@ -14,6 +14,6 @@ PrediXcan prediction weights were pulled from [PredictDB](http://predictdb.org/)
 3. Compile prediction results and compare with measurements ([docs](./src/03_analyze_results/README.md))
 
 ## References
-Borrell LN, _et al_. Childhood obesity and asthma control in the GALA II and SAGE II studies. _AJRCCM_ 2013 Apr 01; 187(7):697-702. ([link](https://www.ncbi.nlm.nih.gov/pubmed/23392439))
-Mak ACY, White MJ, Eckalbar W, _et al_. Whole Genome Sequencing Study on Bronchodilator Drug Response in Ethnically Diverse Children with Asthma. _AJRCCM_ 2018; 197(12):1552--1564. ([link](https://www.ncbi.nlm.nih.gov/pubmed/29509491)
-Gamazon E, _et al_. A gene-based association method for mapping traits using reference transcriptome data. _Nature Genetics_ 2015; 47:1091--1098. ([link](https://www.nature.com/articles/ng.3367))
+* Borrell LN, _et al_. Childhood obesity and asthma control in the GALA II and SAGE II studies. _AJRCCM_ 2013 Apr 01; 187(7):697-702. ([link](https://www.ncbi.nlm.nih.gov/pubmed/23392439))
+* Mak ACY, White MJ, Eckalbar W, _et al_. Whole Genome Sequencing Study on Bronchodilator Drug Response in Ethnically Diverse Children with Asthma. _AJRCCM_ 2018; 197(12):1552--1564. ([link](https://www.ncbi.nlm.nih.gov/pubmed/29509491)
+* Gamazon E, _et al_. A gene-based association method for mapping traits using reference transcriptome data. _Nature Genetics_ 2015; 47:1091--1098. ([link](https://www.nature.com/articles/ng.3367))
