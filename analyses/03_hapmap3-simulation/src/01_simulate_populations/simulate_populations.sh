@@ -82,69 +82,103 @@ mkdir -p ${datadir}
 mkdir -p ${genotypedir}
 mkdir -p ${simulationdir}
 
-# download HAPGEN2 to download directory
-wget ${hapgen2_url} -P ${download_dir} 
-wget ${hm3_url} -P ${download_dir} 
+### =======================================================================================
+### the next section is intentionally commented
+### it shows how HAPGEN2 was used to simulate haplotypes from CEU, YRI references
+### but the procedures does not yield reproducible simulations
+### to reproduce analyses, instead download simulated haplotypes directly
+### =======================================================================================
 
-# extract HAPGEN2 to bin directory
-tar -xzvf ${hapgen2_tarball} -C ${bin_dir}
-
-# extract HM3 to data directory
-tar -xzvf ${hm3_tarball} -C ${datadir}
-
-# grab genes from chromosome 22
-# in principle, this script works for any gene and any suitable padding around the gene
-# by "pad" we mean the additional bases in the cis region around the gene
-# the default here is for chr22 with 500Kb pad (note: another 500Kb is added later!)
-# change these defaults with optional arguments to get_chr22_genes.R, e.g.
-# --cis-add 100 (adds 100 *base pairs* not Kb)
-# --chr 21
-$RSCRIPT $R_get_genes --out ${genelist}
-
-# a brief note on the choice of numbers for option -Ne
-# (taken from http://mathgen.stats.ox.ac.uk/genetics_software/hapgen/hapgen2.html)
+## download HAPGEN2 to download directory
+#wget ${hapgen2_url} -P ${download_dir} 
+#wget ${hm3_url} -P ${download_dir} 
 #
-#     "For autosomal chromosomes, we highly recommend the values 11418 for CEPH,
-#        17469 for Yoruban and 14269 for Chinese Japanese populations."
+## extract HAPGEN2 to bin directory
+#tar -xzvf ${hapgen2_tarball} -C ${bin_dir}
 #
-# presumably CEPH is the CEU? that is what is assumed here
-# information for other options in HAPGEN2 is also available at the aforementioned URL
-# briefly:
-# -m is the genetic map (provided by IMPUTE2/HAPGEN2)
-# -l is the position legend (from IMPUTE2)
-# -h is the haplotype file (from HapMap3, provided by IMPUTE2)
-# -o is the output path
-# -dl specifies the disease SNPs and disease risks (not relevant here)
-# -n is the number of *controls* and *cases* (e.g. -n 1000 1 yields 1000 controls, 1 case)
+## extract HM3 to data directory
+#tar -xzvf ${hm3_tarball} -C ${datadir}
+#
+## grab genes from chromosome 22
+## in principle, this script works for any gene and any suitable padding around the gene
+## by "pad" we mean the additional bases in the cis region around the gene
+## the default here is for chr22 with 500Kb pad (note: another 500Kb is added later!)
+## change these defaults with optional arguments to get_chr22_genes.R, e.g.
+## --cis-add 100 (adds 100 *base pairs* not Kb)
+## --chr 21
+#$RSCRIPT $R_get_genes --out ${genelist}
+#
+## a brief note on the choice of numbers for option -Ne
+## (taken from http://mathgen.stats.ox.ac.uk/genetics_software/hapgen/hapgen2.html)
+##
+##     "For autosomal chromosomes, we highly recommend the values 11418 for CEPH,
+##        17469 for Yoruban and 14269 for Chinese Japanese populations."
+##
+## presumably CEPH is the CEU? that is what is assumed here
+## information for other options in HAPGEN2 is also available at the aforementioned URL
+## briefly:
+## -m is the genetic map (provided by IMPUTE2/HAPGEN2)
+## -l is the position legend (from IMPUTE2)
+## -h is the haplotype file (from HapMap3, provided by IMPUTE2)
+## -o is the output path
+## -dl specifies the disease SNPs and disease risks (not relevant here)
+## -n is the number of *controls* and *cases* (e.g. -n 1000 1 yields 1000 controls, 1 case)
+#
+## simulate 1000 EUR indivs from CEU
+#$HAPGEN2 \
+#    -m ${genetic_map} \
+#    -l ${chr22_legend} \
+#    -h ${CEU_hap} \
+#    -o ${CEU_out} \
+#    -dl 14560203 1 1.0 2.0 \
+#    -n 1000 1 \
+#    -Ne 11418
+#
+## simulate 1000 AFR indivs from YRI 
+#$HAPGEN2 \
+#    -m ${genetic_map} \
+#    -l ${chr22_legend} \
+#    -h ${YRI_hap} \
+#    -o ${YRI_out} \
+#    -dl 14560203 1 1.0 2.0 \
+#    -n 1000 1 \
+#    -Ne 17469 
 
-# simulate 1000 EUR indivs from CEU
-$HAPGEN2 \
-    -m ${genetic_map} \
-    -l ${chr22_legend} \
-    -h ${CEU_hap} \
-    -o ${CEU_out} \
-    -dl 14560203 1 1.0 2.0 \
-    -n 1000 1 \
-    -Ne 11418
+### download required files from cloud directory
+curl -L https://ucsf.box.com/shared/static/iylsvalqrofmga8zsa8c56loj8lwznch.haps > ${CEU_controls}
+curl -L https://ucsf.box.com/shared/static/b7kpxy5t46xg6zlswqxiuoc1d4cc9wyr.sample > ${CEU_samples}
+curl -L https://ucsf.box.com/shared/static/mz0fqoldopjegbi7q216zfyfv5sy8lld.haps > ${YRI_controls}
+curl -L https://ucsf.box.com/shared/static/48qo45rqmbx84l1u1f91ek961w9mmshi.sample > ${YRI_samples}
 
-# simulate 1000 AFR indivs from YRI 
-$HAPGEN2 \
-    -m ${genetic_map} \
-    -l ${chr22_legend} \
-    -h ${YRI_hap} \
-    -o ${YRI_out} \
-    -dl 14560203 1 1.0 2.0 \
-    -n 1000 1 \
-    -Ne 17469 
 
 # sample from these output files to make AA population
 # then format output into genotypes in PLINK RAW format 
 # we only use controls, though nothing about being "control" really matters for our purposes
-$RSCRIPT $R_sample_haps \
-    --CEU-haplotype-file ${CEU_controls} \
-    --YRI-haplotype-file ${YRI_controls} \
-    --CEU-sample-file ${CEU_samples} \
-    --YRI-sample-file ${YRI_samples} \
-    --chr22-legend-path ${chr22_legend} \
-    --output-dir ${genotypedir} \
-    --genelist-path ${genelist}
+
+# start by fixing some parameters
+CEU_props=("0.0" "0.1" "0.2" "0.3" "0.4" "0.5" "0.6" "0.7" "0.8" "0.9" "1.0")
+YRI_props=("1.0" "0.9" "0.8" "0.7" "0.6" "0.5" "0.4" "0.3" "0.2" "0.1" "0.0")
+ngenes=100
+gene_pad=500000 ## this is the # of base pairs in cis-region to add to gene ends
+seed=2018
+
+# assuming that #${CEU_props[@}} == #${YRI_props[@}} here...
+for i in ${!CEU_props[@]}; do
+
+    CEU_prop=${CEU_props[$i]}
+    YRI_prop=${YRI_props[$i]}
+
+    $RSCRIPT $R_sample_haps \
+        --CEU-haplotype-file ${CEU_controls} \
+        --YRI-haplotype-file ${YRI_controls} \
+        --CEU-sample-file ${CEU_samples} \
+        --YRI-sample-file ${YRI_samples} \
+        --chr22-legend-path ${chr22_legend} \
+        --output-dir ${genotypedir} \
+        --genelist-path ${genelist} \
+        --CEU-proportion ${CEU_prop} \
+        --YRI-proportion ${YRI_prop} \
+        --seed ${seed} \
+        --num-genes ${ngenes} \
+        --pad-around-genes ${gene_pad}
+done

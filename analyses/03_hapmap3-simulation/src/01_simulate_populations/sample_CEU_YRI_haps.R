@@ -146,7 +146,13 @@ ceu.haps.sub = ceu.haps[,sample(1:ceu.num,floor(ceu.prop*ceu.num)), with = FALSE
 yri.haps.sub = yri.haps[,sample(1:yri.num,ceiling(yri.prop*yri.num)), with = FALSE]
 
 # slap haps together
-aa.haps = data.table(cbind(ceu.haps.sub, yri.haps.sub))
+if (ceu.prop == 0) {
+    aa.haps = data.table(yri.haps.sub)
+} else if (yri.prop == 0) {
+    aa.haps = data.table(ceu.haps.sub)
+} else {
+    aa.haps = data.table(cbind(ceu.haps.sub, yri.haps.sub))
+}
 aa.num  = dim(aa.haps)[2]
 
 # write to file
@@ -251,7 +257,7 @@ for (i in 1:ngenes) {
     colnames(yri.geno.sub) = c(colnames(yri.samples), chr22.leg$rs[gene.snps])
 
     # make output filepaths for the genotype files
-    aa.filename  = file.path(output.dir, paste0("AA.",  genename, ".chr22.raw")) 
+    aa.filename  = file.path(output.dir, paste0("AA.",  genename, "_CEU", ceu.prop, "_YRI", yri.prop, ".chr22.raw")) 
     ceu.filename = file.path(output.dir, paste0("CEU.", genename, ".chr22.raw")) 
     yri.filename = file.path(output.dir, paste0("YRI.", genename, ".chr22.raw")) 
 
