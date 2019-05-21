@@ -161,6 +161,20 @@ option_list = list(
         default = "0.95",
         help    = "maximum admissible MAF for genotypes used in model construction [default= %default]",
         metavar = "double"
+    ),
+    make_option(
+        c("-A1", "--admix-proportion-pop1"),
+        type    = "double",
+        default = "0.2",
+        help    = "Proportion of haplotypes in admixed population drawn from population 1[default= %default]",
+        metavar = "double"
+    ),
+    make_option(
+        c("-A2", "--admix-proportion-pop2"),
+        type    = "double",
+        default = "0.8",
+        help    = "Proportion of haplotypes in admixed population drawn from population 2[default= %default]",
+        metavar = "double"
     )
 )
 
@@ -197,6 +211,8 @@ nfolds.internal  = opt$nfolds_internal             # how many internal (nested) 
 nfolds.parallel  = opt$nfolds_parallel             # how many folds should be run in parallel? 
 maf.min          = opt$maf_min                     # minimum admissible minor allele frequency from the genotype files
 maf.max          = opt$maf_max                     # maximum admissible minor allele frequency from the genotype files
+admix.prop.pop1  = as.numeric(opt$admix_proportion_pop1) # proportion of haplotypes from pop1 (e.g. CEU, 20%)
+admix.prop.pop2  = as.numeric(opt$admix_proportion_pop2) # proportion of haplotypes from pop2 (e.g. YRI, 80%)
 
 # don't forget to set the seed!
 set.seed(seed)
@@ -463,9 +479,16 @@ if ( same.eQTLs ) {
     # note: the *ancestral* proportions of eqtls from each ancestral pop are fixed, but the % shared eqtls varies
     # if pop1, pop2 share no eqtls, then admix pop will still have eqtls in common with each ancestral pop
     eqtls.in.common = sample(snp.model.1, size = floor(frac.same.eQTLs * k), replace = FALSE)
-    eqtls.different = sample(setdiff(1:M, snp.model.1), size = ceiling((1 - frac.same.eQTLs) * k), replace = FALSE)
+    eqtls.different = sample(
+        setdiff(1:M, snp.model.1),
+        size    = ceiling((1 - frac.same.eQTLs) * k),
+        replace = FALSE
+    )
     snp.model.2     = c(eqtls.in.common, eqtls.different)
-    snp.model.admix = c(eqtls.in.common, sample(snp.model.1, size = floor(0.2 * k), replace = FALSE), sample(snp.model.2, size = ceiling(0.8 * k), replace = FALSE))
+    snp.model.admix = c(eqtls.in.common,
+        sample(snp.model.1, size = floor(admix.prop.pop1 * k), replace = FALSE),
+        sample(snp.model.2, size = ceiling(admix.prop.pop2 * k), replace = FALSE)
+    )
 }
 
 # specify models for pop 2 and admixed pop
@@ -624,7 +647,9 @@ results.this.k = list(
     "k" = k,
     "precision" = precision,
     "sensitivity" = sensitivity,
-    "specificity" = specificity
+    "specificity" = specificity,
+    "admix.pop1"  = admix.prop.pop1,
+    "admix.pop2"  = admix.prop.pop2
 )
 
 cat("\nanalysis done.\n\n")
@@ -633,6 +658,7 @@ cat("\nanalysis done.\n\n")
 cat("saving results...\n")
 #datafile.path = paste0(gene, "_simulation_prediction_admixedpop_sameeQTLs", same.eQTLs, "_sameeffects", same.eQTL.betas, "_k", "_", paste(strsplit(as.character(Sys.time()), " ")[[1]], collapse = "-"), ".Rdata")
 datafile.path = file.path(output.dir, paste0(gene, "_simulation_prediction_admixedpop_sameeQTLs", same.eQTLs, "_sameeffects", same.eQTL.betas, "_k", k, "_seed", seed, "_propsharedeQTLs", frac.same.eQTLs, ".Rdata"))
-save.image(datafile.path)
+#save.image(datafile.path)
+save(results.this.k, file = datafile.path)
 
 cat(paste0("End time: ", Sys.time(), "\n\n"))
