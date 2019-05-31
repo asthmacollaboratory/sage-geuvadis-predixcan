@@ -1,7 +1,6 @@
 ##!/usr/bin/env Rscript --vanilla
 # ==========================================================================================
 # coded by Kevin L. Keys (2018)
-#
 # ==========================================================================================
 
 
@@ -20,21 +19,21 @@ option_list = list(
     make_option(
         c("-r", "--results-file"),
         type    = "character",
-        default = NULL, 
-        help    = "The data frame containing all results to analyze.", 
+        default = NULL,
+        help    = "The data frame containing all results to analyze.",
         metavar = "character"
     ),
     make_option(
         c("-o", "--output-directory"),
         type    = "character",
-        default = NULL, 
-        help    = "Prefix for output files.", 
+        default = NULL,
+        help    = "Prefix for output files.",
         metavar = "character"
     ),
     make_option(
         c("-p", "--plot-filetype"),
         type    = "character",
-        default = "pdf", 
+        default = "pdf",
         help    = "Output filetype for the plots, e.g. 'pdf', 'png', 'svg', etc.",
         metavar = "character"
     )
@@ -50,7 +49,7 @@ print(opt)
 # ==========================================================================================
 # script variables
 # ==========================================================================================
-results.file  = opt$results_file 
+results.file  = opt$results_file
 output.dir    = opt$output_directory
 plot.filetype = opt$plot_filetype
 
@@ -69,7 +68,7 @@ corr.plot = x %>%
     dplyr::filter(k == k.val) %>%
     ggplot(aes(x = Correlation)) +
         geom_histogram(binwidth = binwidth, color = "black", fill = "white") +
-        facet_grid(Train_Pop ~ Test_Pop) + 
+        facet_grid(Train_Pop ~ Test_Pop) +
         ggtitle("Cross-population imputation accuracy", subtitle = paste0("Correlation for causal number of eQTLs k = ", k.val)) +
         xlab(expression(Spearman~italic(rho))) +
         xlim(xlim.lo, xlim.hi) +
@@ -79,10 +78,10 @@ corr.plot = x %>%
 
 # subroutine to make faceted R2 plot
 make.r2.plot = function(x, k.val = 1, binwidth = 0.005, xlim.lo = 0, xlim.hi = 1, ylim.lo = 0, ylim.hi = 25000){
-    r2.plot = x %>% 
+    r2.plot = x %>%
         dplyr::filter(k == k.val) %>%
-        ggplot(aes(x = R2)) + 
-            geom_histogram(binwidth = binwidth, color = "black", fill = "white") + 
+        ggplot(aes(x = R2)) +
+            geom_histogram(binwidth = binwidth, color = "black", fill = "white") +
             facet_grid(Train_Pop ~ Test_Pop) +
             ggtitle("Cross-population imputation accuracy", subtitle = paste0("R2 for causal number of eQTLs k = ", k.val)) +
             xlab(expression(italic(R)^2)) +
@@ -94,7 +93,7 @@ make.r2.plot = function(x, k.val = 1, binwidth = 0.005, xlim.lo = 0, xlim.hi = 1
 
 
 # ==========================================================================================
-# script code 
+# script code
 # ==========================================================================================
 
 # enable plotting of PNG and similar files
@@ -113,7 +112,7 @@ x$Train_Test = paste(x$Train_Pop, x$Test_Pop, sep = " to ")
 for (k.val in K) {
 
     # filepaths for saving plots
-    r2.facet.plot.path          = file.path(output.dir, paste0("1kg.sims.corrs.facet.k", k.val, ".", plot.filetype)) 
+    r2.facet.plot.path          = file.path(output.dir, paste0("1kg.sims.corrs.facet.k", k.val, ".", plot.filetype))
     corr.facet.plot.path        = file.path(output.dir, paste0("1kg.sims.R2.facet.k", k.val, ".", plot.filetype))
     corr.by.propsharedeqtl.path = file.path(output.dir, paste0("1kg.sims.corrs.by.propsharedeqtl.k", k.val, ".", plot.filetype))
 
@@ -128,7 +127,9 @@ for (k.val in K) {
         dplyr::filter(
             (Train_Pop != Test_Pop) &
             (k == k.val) &
-            (prop_shared_eqtl < 0.91) 
+            (prop_shared_eqtl < 0.91) &
+            (CEU_prop == 0.2) &
+            (YRI_prop == 0.8)
         ) %>%
         group_by(Train_Test, gene, prop_shared_eqtl) %>%
         summarize(Correlation = mean(Correlation, na.rm = TRUE)) %>%
@@ -178,24 +179,28 @@ for (k.val in K) {
 k.val = 10
 
 # need some comparison statistics
-# are groups significantly different from each other? 
-x.kruskal = x %>% 
-	# pull results for current k, purge pop-to-itself, and 0.90 < prop_shared_eqtl < 1.0 
+# are groups significantly different from each other?
+x.kruskal = x %>%
+	# pull results for current k, purge pop-to-itself, and 0.90 < prop_shared_eqtl < 1.0
 	dplyr::filter(
 		(k == k.val) &
 		(prop_shared_eqtl < 0.91) &
-		(Train_Pop != Test_Pop)
+		(Train_Pop != Test_Pop) &
+        (CEU_prop == 0.2) &
+        (YRI_prop == 0.8)
 	) %>%
 	kruskal.test(Correlation ~ as.factor(Train_Test), data = .)
 print(x.kruskal)
 
 # *which* groups are different from each other?
-x.dunn = x %>% 
-	# pull results for current k, purge pop-to-itself, and 0.90 < prop_shared_eqtl < 1.0 
+x.dunn = x %>%
+	# pull results for current k, purge pop-to-itself, and 0.90 < prop_shared_eqtl < 1.0
 	dplyr::filter(
 		(k == k.val) &
-		(prop_shared_eqtl < 0.91) &  
-		(Train_Pop != Test_Pop)
+		(prop_shared_eqtl < 0.91) &
+		(Train_Pop != Test_Pop) &
+        (CEU_prop == 0.2) &
+        (YRI_prop == 0.8)
 	) %>%
     group_by(Train_Test, gene, prop_shared_eqtl) %>%
     summarize(Correlation = mean(Correlation, na.rm = TRUE)) %>%
@@ -209,9 +214,11 @@ fwrite(x = dunn.results, file = dunn.results.path, sep = "\t")
 # this is useful as supp table for manuscript
 samepop.results = x %>%
     filter(
-        Train_Pop == Test_Pop &
-        prop_shared_eqtl < 0.91
-    ) %>% 
+        (Train_Pop == Test_Pop) &
+        (prop_shared_eqtl < 0.91) &
+        (CEU_prop == 0.2) &
+        (YRI_prop == 0.8)
+    ) %>%
     group_by(Train_Pop, Test_Pop, k, gene, prop_shared_eqtl) %>%
     summarize(Correlation = mean(Correlation, na.rm = TRUE)) %>%
     group_by(Train_Pop, Test_Pop, k, prop_shared_eqtl) %>%

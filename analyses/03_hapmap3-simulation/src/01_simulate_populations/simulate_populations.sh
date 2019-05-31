@@ -2,7 +2,7 @@
 # ==========================================================================================
 # coded by Kevin L. Keys (2018)
 #
-# This script simulates two populations using HAPGEN2 and HapMap3 haplotypes from CEU + YRI. 
+# This script simulates two populations using HAPGEN2 and HapMap3 haplotypes from CEU + YRI.
 # It first downloads HAPGEN2 and the sample HapMap3 data from the IMPUTE2 website.
 # The sample haplotypes are used for forward-simulations with HAPGEN2.
 # Each simulated population will contain 1000 controls and 1 case.
@@ -19,7 +19,7 @@ set -e  ## script will exit on error
 set -u  ## script will exit if it sees an uninitialized variable
 
 # ==========================================================================================
-# directories 
+# directories
 # ==========================================================================================
 thisdir="$(dirname $(readlink -f $0))"
 analysisdir="${thisdir}/../../analysis"
@@ -34,18 +34,18 @@ genotypedir="${analysisdir}/genotypes"
 # binaries
 # ==========================================================================================
 HAPGEN2="${bin_dir}/hapgen2"
-RSCRIPT=$(whereis Rscript | awk '{print $2}') ## will default to system Rscript, if installed 
+RSCRIPT=$(whereis Rscript | awk '{print $2}') ## will default to system Rscript, if installed
 
 
 # ==========================================================================================
-# external scripts 
+# external scripts
 # ==========================================================================================
 R_sample_haps="${thisdir}/sample_CEU_YRI_haps.R"
 R_get_genes="${thisdir}/get_chr22_genes.R"
 
 
 # ==========================================================================================
-# file paths 
+# file paths
 # ==========================================================================================
 genetic_map="${datadir}/HM3/genetic_map_chr22_combined_b36.txt"
 chr22_legend="${datadir}/HM3/hapmap3.r2.b36.chr22.legend"
@@ -62,7 +62,7 @@ YRI_samples="${simulationdir}/YRI.chr22.out.controls.sample"
 
 
 # ==========================================================================================
-# script variables, URLs 
+# script variables, URLs
 # ==========================================================================================
 hapgen2_url="http://mathgen.stats.ox.ac.uk/genetics_software/hapgen/download/builds/x86_64/v2.2.0/hapgen2_x86_64.tar.gz"
 hm3_url="https://mathgen.stats.ox.ac.uk/wtccc-software/HM3.tgz"
@@ -71,7 +71,7 @@ hm3_tarball="${download_dir}/HM3.tgz"
 
 
 # ==========================================================================================
-# executable code 
+# executable code
 # ==========================================================================================
 
 # make directories as needed
@@ -90,24 +90,24 @@ mkdir -p ${simulationdir}
 ### =======================================================================================
 
 ## download HAPGEN2 to download directory
-#wget ${hapgen2_url} -P ${download_dir} 
-#wget ${hm3_url} -P ${download_dir} 
+#wget ${hapgen2_url} -P ${download_dir}
+#wget ${hm3_url} -P ${download_dir}
 #
 ## extract HAPGEN2 to bin directory
 #tar -xzvf ${hapgen2_tarball} -C ${bin_dir}
 #
 ## extract HM3 to data directory
 #tar -xzvf ${hm3_tarball} -C ${datadir}
-#
-## grab genes from chromosome 22
-## in principle, this script works for any gene and any suitable padding around the gene
-## by "pad" we mean the additional bases in the cis region around the gene
-## the default here is for chr22 with 500Kb pad (note: another 500Kb is added later!)
-## change these defaults with optional arguments to get_chr22_genes.R, e.g.
-## --cis-add 100 (adds 100 *base pairs* not Kb)
-## --chr 21
+
+# grab genes from chromosome 22
+# in principle, this script works for any gene and any suitable padding around the gene
+# by "pad" we mean the additional bases in the cis region around the gene
+# the default here is for chr22 with 500Kb pad (note: another 500Kb is added later!)
+# change these defaults with optional arguments to get_chr22_genes.R, e.g.
+# --cis-add 100 (adds 100 *base pairs* not Kb)
+# --chr 21
 #$RSCRIPT $R_get_genes --out ${genelist}
-#
+
 ## a brief note on the choice of numbers for option -Ne
 ## (taken from http://mathgen.stats.ox.ac.uk/genetics_software/hapgen/hapgen2.html)
 ##
@@ -134,7 +134,7 @@ mkdir -p ${simulationdir}
 #    -n 1000 1 \
 #    -Ne 11418
 #
-## simulate 1000 AFR indivs from YRI 
+## simulate 1000 AFR indivs from YRI
 #$HAPGEN2 \
 #    -m ${genetic_map} \
 #    -l ${chr22_legend} \
@@ -142,8 +142,8 @@ mkdir -p ${simulationdir}
 #    -o ${YRI_out} \
 #    -dl 14560203 1 1.0 2.0 \
 #    -n 1000 1 \
-#    -Ne 17469 
-
+#    -Ne 17469
+#
 ### download required files from cloud directory
 curl -L https://ucsf.box.com/shared/static/iylsvalqrofmga8zsa8c56loj8lwznch.haps > ${CEU_controls}
 curl -L https://ucsf.box.com/shared/static/b7kpxy5t46xg6zlswqxiuoc1d4cc9wyr.sample > ${CEU_samples}
@@ -152,7 +152,7 @@ curl -L https://ucsf.box.com/shared/static/48qo45rqmbx84l1u1f91ek961w9mmshi.samp
 
 
 # sample from these output files to make AA population
-# then format output into genotypes in PLINK RAW format 
+# then format output into genotypes in PLINK RAW format
 # we only use controls, though nothing about being "control" really matters for our purposes
 
 # start by fixing some parameters
@@ -168,6 +168,8 @@ for i in ${!CEU_props[@]}; do
     CEU_prop=${CEU_props[$i]}
     YRI_prop=${YRI_props[$i]}
 
+    echo "CEU proportion: ${CEU_prop}"
+    echo "YRI proportion: ${YRI_prop}"
     $RSCRIPT $R_sample_haps \
         --CEU-haplotype-file ${CEU_controls} \
         --YRI-haplotype-file ${YRI_controls} \

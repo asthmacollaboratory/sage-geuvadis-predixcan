@@ -3,14 +3,14 @@
 # coded by Kevin L. Keys (2018)
 #
 # This script simulates phenotypes and computes predictive models in three populations.
-# The populations are specified by genotype files from which phenotypes are simulated. 
+# The populations are specified by genotype files from which phenotypes are simulated.
 # Each phenotype contains a prespecified number of true eQTLs; other genotypes have 0 effect.
 # Each phenotype/genotype set is then used to train a predictive model.
 # The training scheme uses elastic net regression with a nested crossvalidation scheme.
 # ==========================================================================================
 
 # ==========================================================================================
-# script options 
+# script options
 # ==========================================================================================
 
 # don't emit warnings, only errors
@@ -32,57 +32,57 @@ option_list = list(
     make_option(
         c("-g", "--gene-name"),
         type    = "character",
-        default = NULL, 
-        help    = "The name of the gene being analyzed, used for prefixing output", 
+        default = NULL,
+        help    = "The name of the gene being analyzed, used for prefixing output",
         metavar = "character"
     ),
     make_option(
         c("-g1", "--genotypes-pop1"),
         type    = "character",
-        default = NULL, 
-        help    = "PLINK RAW file for population 1", 
+        default = NULL,
+        help    = "PLINK RAW file for population 1",
         metavar = "character"
     ),
     make_option(
         c("-g2", "--genotypes-pop2"),
         type    = "character",
-        default = NULL, 
-        help    = "PLINK RAW file for population 2", 
+        default = NULL,
+        help    = "PLINK RAW file for population 2",
         metavar = "character"
     ),
     make_option(
         c("-ga", "--genotypes-admix"),
         type    = "character",
-        default = NULL, 
-        help    = "PLINK RAW file for admixed population", 
+        default = NULL,
+        help    = "PLINK RAW file for admixed population",
         metavar = "character"
     ),
     make_option(
         c("-o", "--output-directory"),
         type    = "character",
-        default = NULL, 
+        default = NULL,
         help    = "Directory where prediction results will be stored in Rdata format",
         metavar = "character"
     ),
     make_option(
         c("-seq", "--same-eqtls"),
         type    = "logical",
-        default = TRUE, 
-        help    = "should predictive models use exact same eQTL positions? [default = %default]", 
+        default = TRUE,
+        help    = "should predictive models use exact same eQTL positions? [default = %default]",
         metavar = "logical"
     ),
     make_option(
         c("-f", "--fraction-overlapping-eqtls"),
         type    = "double",
-        default = 0.0, 
-        help    = "what fraction of eQTL positions should pop1 and pop2 share? Only applies when --same-eqtls=FALSE [default = %default]", 
+        default = 0.0,
+        help    = "what fraction of eQTL positions should pop1 and pop2 share? Only applies when --same-eqtls=FALSE [default = %default]",
         metavar = "double"
     ),
     make_option(
         c("-sef", "--same-eqtl-effects"),
         type    = "logical",
-        default = TRUE, 
-        help    = "should predictive models use same eQTL effects? [default = %default]", 
+        default = TRUE,
+        help    = "should predictive models use same eQTL effects? [default = %default]",
         metavar = "logical"
     ),
     make_option(
@@ -198,17 +198,17 @@ genos.2.path     = opt$genotypes_pop2              # filepath to PLINK RAW file 
 genos.admix.path = opt$genotypes_admix             # filepath to PLINK RAW file for pop 2 (e.g. AA)
 output.dir       = opt$output_directory            # where will the prediction output be stored?
 eqtl.mean        = opt$eqtl_mean                   # mean of eQTL effect sizes
-eqtl.sd          = opt$eqtl_sd                     # sd of eQTL effect sizes 
-h2               = opt$heritability                # heritability of phenotype, which parametrizes phenotypic noise 
-alpha            = opt$alpha                       # elastic net mixing parameter 
-seed             = opt$random_seed                 # random seed for reproducibility 
-k                = as.numeric(opt$num_eqtls)       # number of true eQTLs to simulate 
-same.eQTLs       = opt$same_eqtls                  # should the predictive models use the exact same eQTLs? 
+eqtl.sd          = opt$eqtl_sd                     # sd of eQTL effect sizes
+h2               = opt$heritability                # heritability of phenotype, which parametrizes phenotypic noise
+alpha            = opt$alpha                       # elastic net mixing parameter
+seed             = opt$random_seed                 # random seed for reproducibility
+k                = as.numeric(opt$num_eqtls)       # number of true eQTLs to simulate
+same.eQTLs       = opt$same_eqtls                  # should the predictive models use the exact same eQTLs?
 frac.same.eQTLs  = opt$fraction_overlapping_eqtls  # what fraction of the eQTLs should the three populations share?
-same.eQTL.betas  = opt$same_eqtl_effects           # should the predictive models use the same eQTL effect sizes? 
+same.eQTL.betas  = opt$same_eqtl_effects           # should the predictive models use the same eQTL effect sizes?
 nfolds.external  = opt$nfolds_external             # how many external crossvalidation folds should be run?
 nfolds.internal  = opt$nfolds_internal             # how many internal (nested) CV folds should be run?
-nfolds.parallel  = opt$nfolds_parallel             # how many folds should be run in parallel? 
+nfolds.parallel  = opt$nfolds_parallel             # how many folds should be run in parallel?
 maf.min          = opt$maf_min                     # minimum admissible minor allele frequency from the genotype files
 maf.max          = opt$maf_max                     # maximum admissible minor allele frequency from the genotype files
 admix.prop.pop1  = as.numeric(opt$admix_proportion_pop1) # proportion of haplotypes from pop1 (e.g. CEU, 20%)
@@ -236,7 +236,7 @@ maf.onesnp = function(x) {
 
 # compute minor allele frequencies for all columns of a genotype dosage matrix
 maf = function(x) {
-    y = apply(x, 2, maf.onesnp) 
+    y = apply(x, 2, maf.onesnp)
     return(y)
 }
 
@@ -250,12 +250,12 @@ impute.with.maf = function(x, mafs) {
 
 # subroutine to partition a range of numbers
 # this yields indices to pull held-out-samples
-chunk.samples = function(x,n) split(x, cut(seq_along(x), n, labels = FALSE)) 
+chunk.samples = function(x,n) split(x, cut(seq_along(x), n, labels = FALSE))
 
 # train a predictive model for one population and one continuous phenotype
 # use elastic net with selectable alpha parameter
 # train with a nested crossvalidation scheme:
-# -- outer nest is "nfolds.external"-CV 
+# -- outer nest is "nfolds.external"-CV
 # -- inner nest is "nfolds.internal"-CV
 train.predictive.model = function(x, y, nfolds = length(y) - 1, verbose = TRUE, alpha = 0.5, nlambda = 100, parallel = TRUE, lambda.min.ratio = 0.01){
 
@@ -265,14 +265,14 @@ train.predictive.model = function(x, y, nfolds = length(y) - 1, verbose = TRUE, 
 
     # error checking
 	assert_that(n.x == n)    # ensure that x and y have the same number of rows
-    assert_that(nfolds <= n) # ensure that number of folds does not exceed number of samples 
+    assert_that(nfolds <= n) # ensure that number of folds does not exceed number of samples
 
     # preallocate matrices to store output
 	best.betas = matrix(-Inf, p, n)
 	y.pred     = matrix(-Inf, n, 1)
 
     # make crossvalidation sample
-    folds = chunk.samples(1:n, nfolds.external)    
+    folds = chunk.samples(1:n, nfolds.external)
 
 	# perform nested crossvalidation scheme
     # outer loop is leave-one-out
@@ -321,7 +321,7 @@ train.predictive.model = function(x, y, nfolds = length(y) - 1, verbose = TRUE, 
 }
 
 load.geno.data = function(file.path){
-    geno.data = fread(file.path, header = TRUE)[,-c(2:6)]  ## cols 2-5 not needed here 
+    geno.data = fread(file.path, header = TRUE)[,-c(2:6)]  ## cols 2-5 not needed here
     colnames(geno.data)[1] = "SubjectID"
     setkey(geno.data, "SubjectID")
     setorderv(geno.data, "SubjectID", 1L)
@@ -331,25 +331,25 @@ load.geno.data = function(file.path){
 }
 
 # ==========================================================================================
-# load genotype data from file 
+# load genotype data from file
 # ==========================================================================================
 
 
 cat(paste0("Start time: ", Sys.time(), "\n\n"))
 
 cat("loading genotype data...\n")
-pop.1       = load.geno.data(genos.1.path) 
+pop.1       = load.geno.data(genos.1.path)
 pop.2       = load.geno.data(genos.2.path)
 pop.admix   = load.geno.data(genos.admix.path)
-genos.1     = pop.1$geno.data 
+genos.1     = pop.1$geno.data
 genos.2     = pop.2$geno.data
 genos.admix = pop.admix$geno.data
 
 
 # get sample sizes
 # do this before culling genotypes by MAF
-N.ancestral.1 = dim(genos.1)[1] 
-N.ancestral.2 = dim(genos.2)[1] 
+N.ancestral.1 = dim(genos.1)[1]
+N.ancestral.2 = dim(genos.2)[1]
 N.admix       = dim(genos.admix)[1]
 
 # subsample the ancestral pops
@@ -399,14 +399,14 @@ maf.pass = maf.pass.1 & maf.pass.2 & maf.pass.admix
 
 commonsnps.mafpass = commonsnps[maf.pass]
 
-cat("Total number of common SNPs within MAF thresholds: ", length(commonsnps.mafpass), "\n") 
+cat("Total number of common SNPs within MAF thresholds: ", length(commonsnps.mafpass), "\n")
 
 genos.1     = as.matrix(genos.1[, ..commonsnps.mafpass])
 genos.2     = as.matrix(genos.2[, ..commonsnps.mafpass])
 genos.admix = as.matrix(genos.admix[, ..commonsnps.mafpass])
 
 
-# get numbers of SNPs here. these numbers should be *exactly the same* 
+# get numbers of SNPs here. these numbers should be *exactly the same*
 p.1     = dim(genos.1)[2]
 p.2     = dim(genos.2)[2]
 p.admix = dim(genos.admix)[2]
@@ -416,7 +416,7 @@ if ( !all(p.1 == p.2, p.2 == p.admix, p.admix == p.1) ) {
 
 
 # how many (common) SNPs are in this gene?
-M = p.1 
+M = p.1
 cat("M = ", M, "\n")
 cat("p1 = ", p.1, "\n")
 cat("p2 = ", p.2, "\n")
@@ -458,7 +458,7 @@ beta.admix = matrix(0, M, 1)
 if ( same.eQTL.betas ) {
     eqtl.effects.2     = eqtl.effects.1
     eqtl.effects.admix = eqtl.effects.1
-} else { 
+} else {
     eqtl.effects.2     = rnorm(k, eqtl.mean, eqtl.sd)
     eqtl.effects.admix = rnorm(k, eqtl.mean, eqtl.sd)
 }
@@ -497,7 +497,7 @@ beta.admix[snp.model.admix] = eqtl.effects.admix
 
 # specify the phenotype/environmental noise
 # this is parametrized by the desired heritability h2 and # of eQTLs k
-# only works if 0 <= h2 <= 1 !!! 
+# only works if 0 <= h2 <= 1 !!!
 pheno.sd.1 = sqrt( var( genos.1 %*% beta.1 ) * (1 - h2) / h2 )
 pheno.sd.2 = sqrt( var( genos.2 %*% beta.2 ) * (1 - h2) / h2 )
 pheno.sd.admix = sqrt( var( genos.admix %*% beta.admix ) * (1 - h2) / h2 )
@@ -593,12 +593,12 @@ original.models = list(
 genotypes = list(
     "pop1"     = genos.1,
     "pop2"     = genos.2,
-    "admixpop" = genos.admix 
+    "admixpop" = genos.admix
 )
 phenotypes = list(
     "pop1"     = y.1,
     "pop2"     = y.2,
-    "admixpop" = y.admix 
+    "admixpop" = y.admix
 )
 
 # compile information theoretic results
@@ -619,46 +619,47 @@ beta.pred.2.zero = beta.pred.2 == 0
 beta.pred.admix.zero = beta.pred.admix == 0
 
 precision = list(
-    "pop1"     = sum(beta.1.nz & beta.pred.1.nz) / sum(beta.pred.1.nz), 
-    "pop2"     = sum(beta.2.nz & beta.pred.2.nz) / sum(beta.pred.2.nz), 
-    "admixpop" = sum(beta.admix.nz & beta.pred.admix.nz) / sum(beta.pred.admix.nz) 
+    "pop1"     = sum(beta.1.nz & beta.pred.1.nz) / sum(beta.pred.1.nz),
+    "pop2"     = sum(beta.2.nz & beta.pred.2.nz) / sum(beta.pred.2.nz),
+    "admixpop" = sum(beta.admix.nz & beta.pred.admix.nz) / sum(beta.pred.admix.nz)
 )
 sensitivity = list(
-    "pop1"     = sum(beta.1.nz & beta.pred.1.nz) / k, 
-    "pop2"     = sum(beta.2.nz & beta.pred.2.nz) / k, 
-    "admixpop" = sum(beta.admix.nz & beta.pred.admix.nz) / k 
+    "pop1"     = sum(beta.1.nz & beta.pred.1.nz) / k,
+    "pop2"     = sum(beta.2.nz & beta.pred.2.nz) / k,
+    "admixpop" = sum(beta.admix.nz & beta.pred.admix.nz) / k
 )
 specificity = list(
-    "pop1"     = sum(beta.1.zero & beta.pred.1.zero) / sum(beta.1.zero), 
-    "pop2"     = sum(beta.2.zero & beta.pred.2.zero) / sum(beta.2.zero), 
+    "pop1"     = sum(beta.1.zero & beta.pred.1.zero) / sum(beta.1.zero),
+    "pop2"     = sum(beta.2.zero & beta.pred.2.zero) / sum(beta.2.zero),
     "admixpop" = sum(beta.admix.zero & beta.pred.admix.zero) / sum(beta.admix.zero)
 )
 
 # compile list of all results and simulated models for current number of true eQTLs
 results.this.k = list(
-    "r2"         = r2.by.pop,
-    "corr"       = corr.by.pop,
-    "predictive.models" = predictive.models,
-    "original.models"   = original.models, 
-    "genotypes"  = genotypes,
-    "phenotypes" = phenotypes,
-    "same.eqtls" = same.eQTLs,
+    "r2"   = r2.by.pop,
+    "corr" = corr.by.pop,
+    "k"    = k,
+    "seed" = seed,
+    "gene" = gene,
+    "genotypes"    = genotypes,
+    "phenotypes"   = phenotypes,
+    "same.eqtls"   = same.eQTLs,
     "same.effects" = same.eQTL.betas,
-    "k" = k,
-    "precision" = precision,
-    "sensitivity" = sensitivity,
-    "specificity" = specificity,
-    "admix.pop1"  = admix.prop.pop1,
-    "admix.pop2"  = admix.prop.pop2
+    "precision"    = precision,
+    "sensitivity"  = sensitivity,
+    "specificity"  = specificity,
+    "admix.pop1"   = admix.prop.pop1,
+    "admix.pop2"   = admix.prop.pop2,
+    "predictive.models" = predictive.models,
+    "original.models"   = original.models,
+    "prop.shared.eqtl"  = frac.same.eQTLs
 )
 
 cat("\nanalysis done.\n\n")
 
 
 cat("saving results...\n")
-#datafile.path = paste0(gene, "_simulation_prediction_admixedpop_sameeQTLs", same.eQTLs, "_sameeffects", same.eQTL.betas, "_k", "_", paste(strsplit(as.character(Sys.time()), " ")[[1]], collapse = "-"), ".Rdata")
-datafile.path = file.path(output.dir, paste0(gene, "_simulation_prediction_admixedpop_sameeQTLs", same.eQTLs, "_sameeffects", same.eQTL.betas, "_k", k, "_seed", seed, "_propsharedeQTLs", frac.same.eQTLs, ".Rdata"))
-#save.image(datafile.path)
+datafile.path = file.path(output.dir, paste0(gene, "_simulation_prediction_admixedpop_sameeQTLs", same.eQTLs, "_sameeffects", same.eQTL.betas, "_k", k, "_propsharedeQTLs", frac.same.eQTLs, "_CEU", admix.prop.pop1, "_YRI", admix.prop.pop2, "_seed", seed, ".Rdata"))
 save(results.this.k, file = datafile.path)
 
 cat(paste0("End time: ", Sys.time(), "\n\n"))
