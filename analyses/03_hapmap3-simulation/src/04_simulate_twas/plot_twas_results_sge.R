@@ -1,17 +1,89 @@
-library(ggplot2)
-library(data.table)
-library(dplyr)
+suppressMessages(library(data.table))
+suppressMessages(library(dplyr))
+suppressMessages(library(ggplot2))
+suppressMessages(library(methods))
+suppressMessages(library(optparse))
 
-# save a point jitter for (reproducibly) separating points on plots 
-my.jitter = position_jitter(width = 0.1, height = 0.0001, seed = 2019)
+# parse command line variables
+option_list = list(
+    make_option(
+        c("-a", "--results-file"),
+        type    = "character",
+        default = NULL, 
+        help    = "The path to the results file, stored in tabular format", 
+        metavar = "character"
+    ),
+    make_option(
+        c("-b", "--output-directory"),
+        type    = "character",
+        default = NULL, 
+        help    = "Directory where output files will be stored.", 
+        metavar = "character"
+    ),
+    make_option(
+        c("-c", "--plot-filetype"),
+        type    = "character",
+        default = "png", 
+        help    = "Filetype for producing plots [default = %default].",
+        metavar = "character"
+    ),
+    make_option(
+        c("-d", "--random-seed"),
+        type    = "integer",
+        default = 2019, 
+        help    = "Random seed to create reproducible plot jitters [default = %default].",
+        metavar = "integer"
+    ),
+    make_option(
+        c("-e", "--num-genes"),
+        type    = "integer",
+        default = 98, 
+        help    = "Number of genes in the TWAS association tests [default = %default].",
+        metavar = "integer"
+    ),
+    make_option(
+        c("-f", "--num-models"),
+        type    = "integer",
+        default = 12, 
+        help    = "Number of different causal effect sizes tested in TWAS association tests [default = %default].",
+        metavar = "integer"
+    ),
+    make_option(
+        c("-g", "--num-seeds"),
+        type    = "integer",
+        default = 100, 
+        help    = "Number of different random instantiations in the TWAS association tests [default = %default].",
+        metavar = "integer"
+    ),
+    make_option(
+        c("-i", "--num-eQTL"),
+        type    = "integer",
+        default = 10, 
+        help    = "Number of eQTL used to predict gene expression levels for TWAS association tests [default = %default].",
+        metavar = "integer"
+    ) ## note: this argument merely allows us to shoehorn this script through a unified QSUB submission interface
+)
+opt_parser = OptionParser(option_list = option_list)
+opt = parse_args(opt_parser, convert_hyphens_to_underscores = TRUE)
 
-# read results files
-x = fread("twas.sims.all.results.2018-05-06.txt")
+cat("Parsed options:\n\n")
+print(opt)
+
+results.file = opt$results_file
+output.dir   = opt$output_directory
+plot.type    = opt$plot_filetype
+seed         = opt$random_seed
 
 # should ideally confirm that these are true in results
-nmodels = 11
-nseeds  = 100
-ngenes  = 98
+nmodels      = opt$num_models
+ngenes       = opt$num_genes 
+nseeds       = opt$num_seeds 
+
+# save a point jitter for (reproducibly) separating points on plots 
+my.jitter = position_jitter(width = 0.1, height = 0.0001, seed = seed)
+
+# read results files
+x = fread(results.file)
 
 # fix various plotting parameters here
 # writing these once and reusing makes for tidier code
@@ -140,7 +212,8 @@ theme_klk = function(){
 # serves as proxy for how p-values would behave
 g1 = x %>%
     dplyr::filter(
-        Original_Model == 0.1
+        Original_Model == 0.1 &
+        YRI_proportion == 0.8
     ) %>% 
     mutate(Train_Test = paste(Train_Pop, Test_Pop, sep = " to ")) %>% 
     mutate(
@@ -175,17 +248,19 @@ g1 = x %>%
                 )
             )
         )
-ggsave(g1, file = "twas.sim.results.2019-05-06.tstatistic.boxplot.png", units = "in", width = 18, height = 6)
+g1.path = file.path(output.dir, paste("twas.sim.results.tstatistic.boxplot", plot.type, sep = "."))
+ggsave(g1, file = g1.path, units = "in", width = 18, height = 6)
 
 g2 = x %>%
+    dplyr::filter(
+        Original_Model != 0 &
+        YRI_proportion == 0.8
+    ) %>%
     select(Train_Pop, Test_Pop, Seed, Original_Model, Prop_Shared_eQTL, Power, P_value) %>%
     group_by(Train_Pop, Test_Pop, Seed, Original_Model, Prop_Shared_eQTL) %>%
     summarize(Post_Hoc_Power = sum(P_value < 0.05/98)) %>%
     dplyr::mutate(
         Train_Test = paste(Train_Pop, Test_Pop, sep = " to ")
-    ) %>%
-    dplyr::filter(
-        Original_Model != 0
     ) %>%
     ggplot(., aes(x = log10(Original_Model), y = Post_Hoc_Power, color = Train_Test))  +
         geom_point(aes(shape = Train_Test), alpha = 0.2, position = my.jitter) +
@@ -232,16 +307,17 @@ g2 = x %>%
         xlab(bquote(log[10]~"("~beta~")"))
 
 g3 = x %>%
+    dplyr::filter(
+        Original_Model != 0 &
+        Train_Pop != Test_Pop &
+        Prop_Shared_eQTL != 1 &
+        YRI_proportion == 0.8
+    ) %>%
     select(Train_Pop, Test_Pop, Seed, Original_Model, Prop_Shared_eQTL, Power, P_value) %>%
     group_by(Train_Pop, Test_Pop, Seed, Original_Model, Prop_Shared_eQTL) %>%
     summarize(Post_Hoc_Power = sum(P_value < 0.05/98)) %>%
     dplyr::mutate(
         Train_Test = paste(Train_Pop, Test_Pop, sep = " to ")
-    ) %>%
-    dplyr::filter(
-        Original_Model != 0,
-        Train_Pop != Test_Pop,
-        Prop_Shared_eQTL != 1
     ) %>%
     ggplot(., aes(x = log10(Original_Model), y = Post_Hoc_Power, color = Train_Test)) +
         geom_point(aes(shape = Train_Test), alpha = 0.2, position = my.jitter) +
@@ -284,17 +360,19 @@ g3 = x %>%
             bquote("Power of TWAS association tests with cross-population predicted expression"),
             subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTLs per gene") 
         )
-ggsave(g3, file = "twas.sim.results.2019-05-06.power.curves.png", units = "in", width = 18, height = 6)
+g3.path = file.path(output.dir, paste("twas.sim.results.power.curves", plot.type, sep = "."))
+ggsave(g3, file = g3.path, units = "in", width = 18, height = 6)
 
 g4 = x %>%
+    dplyr::filter(
+        Original_Model != 0 &
+        YRI_proportion == 0.8
+    ) %>%
     select(Train_Pop, Test_Pop, Seed, Original_Model, Prop_Shared_eQTL, Power, P_value) %>%
     group_by(Train_Pop, Test_Pop, Seed, Original_Model, Prop_Shared_eQTL) %>%
-    summarize(Post_Hoc_Power = sum(P_value < 0.05/98)) %>%
+    summarize(Post_Hoc_Power = sum(P_value < 0.05/ngenes)) %>%
     dplyr::mutate(
         Train_Test = paste(Train_Pop, Test_Pop, sep = " to ")
-    ) %>%
-    dplyr::filter(
-        Original_Model != 0,
     ) %>%
     ggplot(., aes(x = log10(Original_Model), y = Post_Hoc_Power, color = Train_Test)) +
         geom_point(aes(shape = Train_Test), alpha = 0.2, position = my.jitter) +
@@ -337,13 +415,17 @@ g4 = x %>%
             bquote("Power of TWAS association tests with cross-population predicted expression"),
             subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTLs per gene") 
         )
-ggsave(g4, file = "twas.sim.results.2019-05-06.power.curves.allpops.png", units = "in", width = 18, height = 6)
+g4.path = file.path(output.dir, paste("twas.sim.results.power.curves.allpops", plot.type, sep = "."))
+ggsave(g4, file = g4.path, units = "in", width = 18, height = 6)
 
 
 # at this juncture, it is handy to save another data.frame to summarize power calculations
 # will use this for future plots
 x.power = x %>%
-    dplyr::filter(Original_Model == 0.1) %>%
+    dplyr::filter(
+        Original_Model == 0.1 &
+        YRI_proportion == 0.8
+    ) %>%
     select(Train_Pop, Test_Pop, Seed, Original_Model, Prop_Shared_eQTL, Same_Causal_eQTL, P_value) %>%
     group_by(Train_Pop, Test_Pop, Seed, Original_Model, Prop_Shared_eQTL, Same_Causal_eQTL) %>%
     summarize(
@@ -410,7 +492,8 @@ g6 = x.power %>%
             subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTLs per gene and effect size "~beta~" = 0.1")
         )
 
-ggsave(g6, file = "twas.sim.results.2019-05-06.power.barchart.png", units = "in", width = 18, height = 6)
+g6.path = file.path(output.dir, paste("twas.sim.results.power.barcharts", plot.type, sep = "."))
+ggsave(g6, file = g6.path, units = "in", width = 18, height = 6)
 
 # more complete copy of previous plot, perhaps useful for demonstration purposes
 g7 = x.power %>%
@@ -439,7 +522,8 @@ g7 = x.power %>%
             subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTLs per gene and effect size "~beta~" = 0.1")
         )
 
-ggsave(g7, file = "twas.sim.results.2019-05-06.power.barchart.allpops.png", units = "in", width = 18, height = 6)
+g7.path = file.path(output.dir, paste("twas.sim.results.power.barcharts.allpops", plot.type, sep = "."))
+ggsave(g7, file = g7.path, units = "in", width = 18, height = 6)
 
 # produce power plots for varying admixture levels
 x.power.admix = x %>%
@@ -468,7 +552,8 @@ g8 = ggplot(x.power.admix, aes(x = Train_Test, y = YRI_proportion, fill = Power)
     xlab("Train-test scenario") +
     ylab("YRI proportion in AA")
 
-ggsave(g8, file = "twas.sim.results.2019-05-06.power.heatmap.admixvary.png", units = "in", width = 18, height = 6)
+g8.path = file.path(output.dir, paste("twas.sim.results.power.heatmap.admixvary", plot.type, sep = "."))
+ggsave(g8, file = g8.path, units = "in", width = 18, height = 6)
 
 
 ## OLD CODE ###

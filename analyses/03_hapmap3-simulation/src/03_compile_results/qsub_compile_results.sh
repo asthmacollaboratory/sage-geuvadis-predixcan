@@ -45,7 +45,7 @@ echo "Results will be saved to ${results_file}"
 one_file=$(find ${scratchdir} -type f -name "*_results.txt" | head -n 1)
 head -n 1 ${one_file} > ${results_file}
 
-cat ${scratchdir}/*_results.txt | grep -v "==" | grep -v "gene" >> ${results_file}
+cat ${scratchdir}/*_results.txt | grep -v "==" | grep -v "gene" | grep -v "Gene_Name" >> ${results_file}
 
 echo "Results parsed to file ${results_file}"
 echo "Cleaning up ${scratchdir}..."
