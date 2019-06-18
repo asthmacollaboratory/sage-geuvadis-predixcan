@@ -109,6 +109,20 @@ option_list = list(
         default = 100, 
         help    = "Number of genes to parse, starting from largest [default = %default]",
         metavar = "integer"
+    ),
+    make_option(
+        c("-z1", "--num-CEU"),
+        type    = "integer",
+        default = 1000, 
+        help    = "Number of samples to generate from CEU haplotypes [default = %default]",
+        metavar = "integer"
+    ),
+    make_option(
+        c("-z2", "--num-YRI"),
+        type    = "integer",
+        default = 1000, 
+        help    = "Number of samples to generate from YRI haplotypes [default = %default]",
+        metavar = "integer"
     )
 )
 
@@ -139,13 +153,42 @@ set.seed(seed)
 ceu.haps = fread(ceu.hap.file.path)
 yri.haps = fread(yri.hap.file.path)
 
+## sample proportions
+#ceu.num = dim(ceu.haps)[2]
+#yri.num = dim(yri.haps)[2]
+#ceu.haps.sub = ceu.haps[,sample(1:ceu.num,floor(ceu.prop*ceu.num)), with = FALSE]
+#yri.haps.sub = yri.haps[,sample(1:yri.num,ceiling(yri.prop*yri.num)), with = FALSE]
+
 # sample proportions
+sample.ceu.replacement = FALSE
+sample.yri.replacement = FALSE
 ceu.num = dim(ceu.haps)[2]
 yri.num = dim(yri.haps)[2]
-ceu.haps.sub = ceu.haps[,sample(1:ceu.num,floor(ceu.prop*ceu.num)), with = FALSE]
-yri.haps.sub = yri.haps[,sample(1:yri.num,ceiling(yri.prop*yri.num)), with = FALSE]
 
-# slap haps together
+# this allows for sampling a # of CEU haps that differs from what is in the hap file
+# everything is copesetic if the user asks for the # of CEU haps in the hap file
+# if user asks for more, then we will sample with replacement
+# in contrary case, will simply sample fewer haps
+if (opt$num_CEU != ceu.num) {
+    if (opt$num_CEU > ceu.num) {
+        sample.ceu.replacement = TRUE
+    }
+    ceu.num = opt$num_CEU
+}
+
+# do same sampling adjustment for YRI
+if (opt$num_YRI != yri.num) {
+    if (opt$num_YRI > yri.num) {
+        sample.yri.replacement = TRUE
+    }
+    yri.num = opt$num_YRI
+}
+
+# sample the haplotypes
+ceu.haps.sub = ceu.haps[,sample(1:ceu.num, floor(ceu.prop*ceu.num), replace = sample.ceu.replacement), with = FALSE]
+yri.haps.sub = yri.haps[,sample(1:yri.num, ceiling(yri.prop*yri.num), replace = sample.yri.replacement), with = FALSE]
+
+# slap haps together to make AA
 if (ceu.prop == 0) {
     aa.haps = data.table(yri.haps.sub)
 } else if (yri.prop == 0) {

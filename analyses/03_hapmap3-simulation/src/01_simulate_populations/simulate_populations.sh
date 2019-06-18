@@ -69,6 +69,9 @@ hm3_url="https://mathgen.stats.ox.ac.uk/wtccc-software/HM3.tgz"
 hapgen2_tarball="${download_dir}/hapgen2_x86_64.tar.gz"
 hm3_tarball="${download_dir}/HM3.tgz"
 
+nCEU_haps=10000
+nYRI_haps=10000
+
 
 # ==========================================================================================
 # executable code
@@ -124,24 +127,24 @@ mkdir -p ${simulationdir}
 ## -dl specifies the disease SNPs and disease risks (not relevant here)
 ## -n is the number of *controls* and *cases* (e.g. -n 1000 1 yields 1000 controls, 1 case)
 #
-## simulate 1000 EUR indivs from CEU
+## simulate EUR indivs from CEU
 #$HAPGEN2 \
 #    -m ${genetic_map} \
 #    -l ${chr22_legend} \
 #    -h ${CEU_hap} \
 #    -o ${CEU_out} \
 #    -dl 14560203 1 1.0 2.0 \
-#    -n 1000 1 \
+#    -n ${nCEU_haps} 1 \
 #    -Ne 11418
 #
-## simulate 1000 AFR indivs from YRI
+## simulate AFR indivs from YRI
 #$HAPGEN2 \
 #    -m ${genetic_map} \
 #    -l ${chr22_legend} \
 #    -h ${YRI_hap} \
 #    -o ${YRI_out} \
 #    -dl 14560203 1 1.0 2.0 \
-#    -n 1000 1 \
+#    -n ${nYRI_haps} 1 \
 #    -Ne 17469
 #
 ### download required files from cloud directory
@@ -161,6 +164,8 @@ YRI_props=("1.0" "0.9" "0.8" "0.7" "0.6" "0.5" "0.4" "0.3" "0.2" "0.1" "0.0")
 ngenes=100
 gene_pad=500000 ## this is the # of base pairs in cis-region to add to gene ends
 seed=2018
+nCEU=10000
+nYRI=10000
 
 # assuming that #${CEU_props[@}} == #${YRI_props[@}} here...
 for i in ${!CEU_props[@]}; do
@@ -182,5 +187,7 @@ for i in ${!CEU_props[@]}; do
         --YRI-proportion ${YRI_prop} \
         --seed ${seed} \
         --num-genes ${ngenes} \
-        --pad-around-genes ${gene_pad}
+        --pad-around-genes ${gene_pad} \
+        --num-CEU ${nCEU} \
+        --num-YRI ${nYRI} \
 done
