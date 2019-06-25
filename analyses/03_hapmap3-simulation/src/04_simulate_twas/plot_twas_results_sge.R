@@ -213,7 +213,7 @@ theme_klk = function(){
 g1 = x %>%
     dplyr::filter(
         Original_Model == 0.1 &
-        YRI_proportion == 0.8
+        is.na(YRI_proportion)
     ) %>% 
     mutate(Train_Test = paste(Train_Pop, Test_Pop, sep = " to ")) %>% 
     mutate(
@@ -226,7 +226,8 @@ g1 = x %>%
         ) + 
         ggtitle(
             bquote("Distributions of "~t~"-statistics from TWAS association tests in AA, CEU, and YRI"),
-            subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTLs per gene and effect size "~beta~" = 0.1")
+            #subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTL per gene and effect size "~beta~" = 0.1")
+            subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTL per gene and heritability "~h^2~" = 0.95")
         ) + 
         ylab(bquote(t~"-statistic")) +
         xlab("Train - Test scenario") +
@@ -358,26 +359,44 @@ g3 = x %>%
         xlab(bquote(log[10]~"("~beta~")")) +
         ggtitle(
             bquote("Power of TWAS association tests with cross-population predicted expression"),
-            subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTLs per gene") 
+            subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTL per gene") 
         )
 g3.path = file.path(output.dir, paste("twas.sim.results.power.curves", plot.type, sep = "."))
 ggsave(g3, file = g3.path, units = "in", width = 18, height = 6)
 
+# this applies a light grey color to pop-into-itself scenarios
+my.colors.withgrey = c(
+    "AA to AA"   = "lightgrey",
+    "CEU to AA"  = "blue",
+    "YRI to AA"  = "red",
+    "AA to CEU"  = "black",
+    "CEU to CEU" = "lightgrey",
+    "YRI to CEU" = "red",
+    "AA to YRI"  = "black",
+    "CEU to YRI" = "blue",
+    "YRI to YRI" = "lightgrey"
+)
+
 g4 = x %>%
     dplyr::filter(
         Original_Model != 0 &
-        YRI_proportion == 0.8
+        is.na(YRI_proportion)
     ) %>%
-    select(Train_Pop, Test_Pop, Seed, Original_Model, Prop_Shared_eQTL, Power, P_value) %>%
+    select(Train_Pop, Test_Pop, Seed, Original_Model, Prop_Shared_eQTL, Power, P_value, Heritability) %>%
     group_by(Train_Pop, Test_Pop, Seed, Original_Model, Prop_Shared_eQTL) %>%
-    summarize(Post_Hoc_Power = sum(P_value < 0.05/ngenes)) %>%
+    summarize(
+        Post_Hoc_Power = sum(P_value < 0.05/ngenes),
+        h2 = mean(Heritability, na.rm = TRUE)
+    ) %>%
     dplyr::mutate(
         Train_Test = paste(Train_Pop, Test_Pop, sep = " to ")
     ) %>%
-    ggplot(., aes(x = log10(Original_Model), y = Post_Hoc_Power, color = Train_Test)) +
-        geom_point(aes(shape = Train_Test), alpha = 0.2, position = my.jitter) +
+    #ggplot(., aes(x = log10(Original_Model), y = Post_Hoc_Power, color = Train_Test)) +
+    ggplot(., aes(x = h2, y = Post_Hoc_Power, color = Train_Test)) +
+        #geom_point(aes(shape = Train_Test), alpha = 0.2, position = my.jitter) +
         geom_smooth(aes(linetype = Train_Test), method = "glm", method.args = list(family = "binomial"), se = TRUE, alpha = 0.1, span = 0.5) +
-        geom_vline(xintercept = log10(0.1), color = "red", linetype = "dotdash") +
+        #geom_vline(xintercept = log10(0.1), color = "red", linetype = "dotdash") +
+        geom_vline(xintercept = 0.95, color = "red", linetype = "dotdash") +
         scale_shape_manual(
             name   = "Train to Test",
             values = my.shapes,
@@ -390,7 +409,7 @@ g4 = x %>%
         )  +
         scale_color_manual(
             name   = "Train to Test",
-            values = my.colors,
+            values = my.colors.withgrey,
             breaks = my.breaks.allpop
         ) +
         facet_grid(~ Prop_Shared_eQTL,
@@ -410,10 +429,11 @@ g4 = x %>%
             color    = guide_legend(keywidth = 6, keyheight = 1)
         ) +
         ylab("Power") +
-        xlab(bquote(log[10]~"("~beta~")")) +
+        #xlab(bquote(log[10]~"("~beta~")")) +
+        xlab(bquote("Heritability ("~h^2~")")) +
         ggtitle(
             bquote("Power of TWAS association tests with cross-population predicted expression"),
-            subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTLs per gene") 
+            subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTL per gene") 
         )
 g4.path = file.path(output.dir, paste("twas.sim.results.power.curves.allpops", plot.type, sep = "."))
 ggsave(g4, file = g4.path, units = "in", width = 18, height = 6)
@@ -424,22 +444,24 @@ ggsave(g4, file = g4.path, units = "in", width = 18, height = 6)
 x.power = x %>%
     dplyr::filter(
         Original_Model == 0.1 &
-        YRI_proportion == 0.8
+        is.na(YRI_proportion)
     ) %>%
-    select(Train_Pop, Test_Pop, Seed, Original_Model, Prop_Shared_eQTL, Same_Causal_eQTL, P_value) %>%
+    select(Train_Pop, Test_Pop, Seed, Original_Model, Prop_Shared_eQTL, Same_Causal_eQTL, P_value, Heritability) %>%
     group_by(Train_Pop, Test_Pop, Seed, Original_Model, Prop_Shared_eQTL, Same_Causal_eQTL) %>%
     summarize(
         Post_Hoc_Power = sum(P_value < 0.05/ngenes) / (nseeds),
+        h2 = mean(Heritability, na.rm = TRUE)
     ) %>%
     dplyr::mutate(
         Train_Test = factor(paste(Train_Pop, Test_Pop, sep = " to "),levels = my.breaks.allpop.reverse)
     ) %>%
     ungroup %>%
-    select(Train_Test, Prop_Shared_eQTL, Post_Hoc_Power) %>%
+    select(Train_Test, Prop_Shared_eQTL, Post_Hoc_Power, h2) %>%
     group_by(Train_Test, Prop_Shared_eQTL) %>%
     summarize(
         Power = sum(Post_Hoc_Power),
-        Power_SE = sd(Post_Hoc_Power) / sqrt(n())
+        Power_SE = sd(Post_Hoc_Power) / sqrt(n()),
+        Heritability_Mean = mean(h2, na.rm = TRUE)
     )
 
 # busy bar chart, including all variables, useful for supplement
@@ -489,7 +511,8 @@ g6 = x.power %>%
         xlab("Train-test scenario") +
         ggtitle(
             bquote("Power of TWAS association tests in AA, CEU, and YRI"),
-            subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTLs per gene and effect size "~beta~" = 0.1")
+            #subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTL per gene and effect size "~beta~" = 0.1")
+            subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTL per gene and "~h^2~" = 0.95")
         )
 
 g6.path = file.path(output.dir, paste("twas.sim.results.power.barcharts", plot.type, sep = "."))
@@ -519,7 +542,8 @@ g7 = x.power %>%
         xlab("Train-test scenario") +
         ggtitle(
             bquote("Power of TWAS association tests in AA, CEU, and YRI"),
-            subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTLs per gene and effect size "~beta~" = 0.1")
+            #subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTL per gene and effect size "~beta~" = 0.1")
+            subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTL per gene and heritability "~h^2~" = 0.95")
         )
 
 g7.path = file.path(output.dir, paste("twas.sim.results.power.barcharts.allpops", plot.type, sep = "."))
@@ -527,14 +551,27 @@ ggsave(g7, file = g7.path, units = "in", width = 18, height = 6)
 
 # produce power plots for varying admixture levels
 x.power.admix = x %>%
-    dplyr::filter(Original_Model %in% c(0.01, 0.025, 0.05) & Train_Pop != Test_Pop) %>%
+    dplyr::filter(
+        Original_Model %in% c(0.01, 0.025, 0.05) &
+        Train_Pop != Test_Pop
+    ) %>%
     select(Train_Pop, Test_Pop, Seed, Original_Model, YRI_proportion, Heritability, P_value) %>%
-    mutate(Train_Test = factor(paste(Train_Pop, Test_Pop, sep = " to "), levels = my.breaks.allpop.reverse)) %>%
+    mutate(
+        Train_Test = factor(paste(Train_Pop, Test_Pop, sep = " to "), levels = my.breaks.allpop.reverse)
+    ) %>%
     group_by(Train_Test, Seed, Original_Model, YRI_proportion) %>%
-    summarize(Post_Hoc_Power = sum(P_value < 0.05/ngenes), h2 = mean(Heritability)) %>%
+    summarize(
+        Post_Hoc_Power = sum(P_value < 0.05/ngenes),
+        h2 = mean(Heritability)
+    ) %>%
     ungroup %>%
     group_by(Train_Test, Original_Model, YRI_proportion) %>%
-    summarize(Power = sum(Post_Hoc_Power) / nseeds, Power_SE = sd(Post_Hoc_Power) / sqrt(n()), h2_Mean = mean(h2), h2_SE = sd(h2) / sqrt(n())) %>%
+    summarize(
+        Power = sum(Post_Hoc_Power) / nseeds,
+        Power_SE = sd(Post_Hoc_Power) / sqrt(n()),
+        h2_Mean = mean(h2),
+        h2_SE = sd(h2) / sqrt(n())
+    ) %>%
     as.data.table
 
 x.power.admix = x.power.admix %>%

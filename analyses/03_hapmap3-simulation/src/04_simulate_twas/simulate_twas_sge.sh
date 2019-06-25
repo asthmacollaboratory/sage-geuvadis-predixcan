@@ -49,7 +49,8 @@ R_plot_twas_results="${thisdir}/plot_twas_results_sge.R"
 # ==========================================================================================
 
 # master file for compiling results 
-results_file="${outputdir}/twas.results.txt"
+#results_file="${outputdir}/twas.results.txt"
+results_file="${outputdir}/twas.sim.all.results.2019-06-07.txt"
 
 # make simulation job list file
 # this will house all parallel jobs to execute
@@ -100,176 +101,176 @@ twas_sd="0.1"   # also for phenotype environmental noise
 # ==========================================================================================
 
 
-#for k in ${K[@]}; do
-#    # directory of stored results depends on variables
+for k in ${K[@]}; do
+    # directory of stored results depends on variables
+    datadir="${HOME}/software/hapgen2/AA_sim/AA_sim_results_2018-11-30/same_eqtls_${same_eqtls}/sameeQTLs${same_eqtls}_sameeffects${same_effects}_k${k}"
+    for prop_shared_eqtl in ${proportions_eqtls[@]}; do
+        for ncausal_genes in ${ncausal_gene_numbers[@]}; do
+            for seed in ${seeds[@]}; do
+                for effect_size in ${effect_sizes[@]}; do
+
+                    outputfilepfx="temp.twas.output.k_${k}.seed_${seed}.same_eqtls_${same_eqtls}.same_eqtl_effects_${same_effects}.prop_shared_eqtl_${prop_shared_eqtl}.same_twas_genes_${same_twas_genes}.same_twas_effects_${same_twas_effects}.ncausal_genes_${ncausal_genes}.effect_size_${effect_size}"
+                    twas_output_path="${outputfilepfx}.txt"
+                    rm -f ${twas_output_path}
+                    touch ${twas_output_path}
+
+                    # output files for nohup
+                    nohup_out="${output_text_dir}/${outputfilepfx}.out"
+                    nohup_err="${output_text_dir}/${outputfilepfx}.err"
+
+                    # write the actual command as echo, append to job list
+                    echo "$RSCRIPT ${R_simulate_twas} --results-directory ${datadir} --output-directory ${outputdir} --output-file-prefix ${outputfilepfx} --num-eQTLs ${k} --proportion-shared-eQTL ${prop_shared_eqtl} --same-eQTLs ${same_eqtls} --same-eQTL-effects ${same_effects} --random-seed ${seed} --same-TWAS-genes ${same_twas_genes} --same-TWAS-effects ${same_twas_effects} --num-genes ${ngenes} --num-samples ${nsamples} --num-causal-genes ${ncausal_genes} --plot-type ${plottype} --effect-size ${effect_size} --TWAS-noise-mean ${twas_mean} --TWAS-noise-standard-deviation ${twas_sd} > ${nohup_out} 2> ${nohup_err}" >> ${simulation_joblist}
+                done
+            done
+        done
+    done
+done
+
+## repeat but for fully shared eqtls
+same_eqtls="TRUE"
+same_effects="TRUE"
+proportions_eqtls=(1)
+for k in ${K[@]}; do
+    # directory of stored results depends on variables
 #    datadir="${HOME}/software/hapgen2/AA_sim/AA_sim_results_2018-11-30/same_eqtls_${same_eqtls}/sameeQTLs${same_eqtls}_sameeffects${same_effects}_k${k}"
-#    for prop_shared_eqtl in ${proportions_eqtls[@]}; do
-#        for ncausal_genes in ${ncausal_gene_numbers[@]}; do
-#            for seed in ${seeds[@]}; do
-#                for effect_size in ${effect_sizes[@]}; do
-#
-#                    outputfilepfx="temp.twas.output.k_${k}.seed_${seed}.same_eqtls_${same_eqtls}.same_eqtl_effects_${same_effects}.prop_shared_eqtl_${prop_shared_eqtl}.same_twas_genes_${same_twas_genes}.same_twas_effects_${same_twas_effects}.ncausal_genes_${ncausal_genes}.effect_size_${effect_size}"
-#                    twas_output_path="${outputfilepfx}.txt"
-#                    rm -f ${twas_output_path}
-#                    touch ${twas_output_path}
-#
-#                    # output files for nohup
-#                    nohup_out="${output_text_dir}/${outputfilepfx}.out"
-#                    nohup_err="${output_text_dir}/${outputfilepfx}.err"
-#
-#                    # write the actual command as echo, append to job list
-#                    echo "$RSCRIPT ${R_simulate_twas} --results-directory ${datadir} --output-directory ${outputdir} --output-file-prefix ${outputfilepfx} --num-eQTLs ${k} --proportion-shared-eQTL ${prop_shared_eqtl} --same-eQTLs ${same_eqtls} --same-eQTL-effects ${same_effects} --random-seed ${seed} --same-TWAS-genes ${same_twas_genes} --same-TWAS-effects ${same_twas_effects} --num-genes ${ngenes} --num-samples ${nsamples} --num-causal-genes ${ncausal_genes} --plot-type ${plottype} --effect-size ${effect_size} --TWAS-noise-mean ${twas_mean} --TWAS-noise-standard-deviation ${twas_sd} > ${nohup_out} 2> ${nohup_err}" >> ${simulation_joblist}
-#                done
-#            done
-#        done
-#    done
-#done
-#
-### repeat but for fully shared eqtls
-#same_eqtls="TRUE"
-#same_effects="TRUE"
-#proportions_eqtls=(1)
-#for k in ${K[@]}; do
-#    # directory of stored results depends on variables
-##    datadir="${HOME}/software/hapgen2/AA_sim/AA_sim_results_2018-11-30/same_eqtls_${same_eqtls}/sameeQTLs${same_eqtls}_sameeffects${same_effects}_k${k}"
-#    datadir="${thisdir}/../../analysis/prediction_output/prediction_output_data"
-#    for prop_shared_eqtl in ${proportions_eqtls[@]}; do
-#        for ncausal_genes in ${ncausal_gene_numbers[@]}; do
-#            for seed in ${seeds[@]}; do
-#                for effect_size in ${effect_sizes[@]}; do
-#
-#                    outputfilepfx="temp.twas.output.k_${k}.seed_${seed}.same_eqtls_${same_eqtls}.same_eqtl_effects_${same_effects}.prop_shared_eqtl_${prop_shared_eqtl}.same_twas_genes_${same_twas_genes}.same_twas_effects_${same_twas_effects}.ncausal_genes_${ncausal_genes}.effect_size_${effect_size}"
-#                    twas_output_path="${outputfilepfx}.txt"
-#                    rm -f ${twas_output_path}
-#                    touch ${twas_output_path}
-#
-#                    # output files for nohup
-#                    nohup_out="${output_text_dir}/${outputfilepfx}.out"
-#                    nohup_err="${output_text_dir}/${outputfilepfx}.err"
-#
-#                    # write the actual command as echo, append to job list
-#                    echo "$RSCRIPT ${R_simulate_twas} --results-directory ${datadir} --output-directory ${outputdir} --output-file-prefix ${outputfilepfx} --num-eQTLs ${k} --proportion-shared-eQTL ${prop_shared_eqtl} --same-eQTLs ${same_eqtls} --same-eQTL-effects ${same_effects} --random-seed ${seed} --same-TWAS-genes ${same_twas_genes} --same-TWAS-effects ${same_twas_effects} --num-genes ${ngenes} --num-samples ${nsamples} --num-causal-genes ${ncausal_genes} --plot-type ${plottype} --effect-size ${effect_size} --TWAS-noise-mean ${twas_mean} --TWAS-noise-standard-deviation ${twas_sd} > ${nohup_out} 2> ${nohup_err}" >> ${simulation_joblist}
-#                done
-#            done
-#        done
-#    done
-#done
-#
-### finally, repeat for the varying admixture proportions
-#same_eqtls="FALSE"
-#same_effects="TRUE"
-#prop_shared_eqtl="0.5"
-#k=10
-#ncausal_genes=1
-#CEU_props=("0" "0.1" "0.2" "0.3" "0.4" "0.5" "0.6" "0.7" "0.8" "0.9" "1") ## <-- note that 0 is NOT 0.0, 1 is NOT 1.0 !!!
-#YRI_props=("1" "0.9" "0.8" "0.7" "0.6" "0.5" "0.4" "0.3" "0.2" "0.1" "0") ## blame R for printing double as integer in analysis step 1
-#
-## directory of stored results depends on variables
-## assuming that #${CEU_props[@}} == #${YRI_props[@}} here...
-#for i in ${!CEU_props[@]}; do
-#
-#    CEU_prop=${CEU_props[$i]}
-#    YRI_prop=${YRI_props[$i]}
-#    for seed in ${seeds[@]}; do
-#        for effect_size in ${effect_sizes[@]}; do
-#
-#            outputfilepfx="twas.output.k_${k}.same_eqtls_${same_eqtls}.same_eqtl_effects_${same_effects}.prop_shared_eqtl_${prop_shared_eqtl}.same_twas_genes_${same_twas_genes}.same_twas_effects_${same_twas_effects}.ncausal_genes_${ncausal_genes}.seed_${seed}.CEU_${CEU_prop}.YRI_${YRI_prop}.effect_size_${effect_size}"
-#            twas_output_path="${outputfilepfx}.txt"
-#            rm -f ${twas_output_path}
-#            touch ${twas_output_path}
-#
-#            # output files for nohup
-#            nohup_out="${output_text_dir}/${outputfilepfx}.out"
-#            nohup_err="${output_text_dir}/${outputfilepfx}.err"
-#
-#            # write output log file to list
-#            echo "${nohup_out}" >> ${simulation_outfile_list}
-#
-#            # write error log file to list
-#            echo "${nohup_err}" >> ${simulation_errfile_list}
-#
-#            # write the actual command as echo, append to job list
-#            echo "$RSCRIPT ${R_simulate_twas} --results-directory ${datadir} --output-directory ${output_results_dir} --output-file-prefix ${outputfilepfx} --num-eQTLs ${k} --proportion-shared-eQTL ${prop_shared_eqtl} --same-eQTLs ${same_eqtls} --same-eQTL-effects ${same_effects} --random-seed ${seed} --same-TWAS-genes ${same_twas_genes} --same-TWAS-effects ${same_twas_effects} --num-genes ${ngenes} --num-samples ${nsamples} --num-causal-genes ${ncausal_genes} --plot-type ${plottype} --effect-size ${effect_size} --TWAS-noise-mean ${twas_mean} --TWAS-noise-standard-deviation ${twas_sd} --CEU-admixture-proportion ${CEU_prop} --YRI-admixture-proportion ${YRI_prop}" >> ${simulation_joblist}
-#        done
-#    done
-#done
-#
-## set SGE variables
-#h_rt="00:29:59"
-#scratch_memory="1G"
-#memory_limit="5G"
-#logdir="${output_text_dir}"
-#
-#njobs=$(wc -l ${simulation_joblist} | awk '{ print $1 }')
-##njobs=2
-#
-## query SGE system limits, particularly the maximum permissible number of array job tasks
-#max_aj_tasks=$(qconf -sconf | grep "max_aj_tasks" | awk '{ print $NF}') ## on UCSF QB3, this is 100k
-#my_max_tasks=$(echo $((max_aj_tasks / 2))) ## slightly favor fewer array jobs with more tasks vs. more array jobs with fewer tasks
-#
-## how many array jobs do we need to schedule?
-## the +1 is necessary since BASH int division *truncates*
-## if we want 3 tasks split into 2 array jobs, an int div here only yields 1 array job
-## but we need *2* array jobs (1st: tasks 1,2; 2nd: task 3)
-#num_array_jobs=$(echo $((njobs / my_max_tasks + 1)))
-#
-## will use these indexing variables to schedule tasks appropriately
-#first_task=1
-#last_task=${my_max_tasks}
-#last_task=$(echo $(( ${last_task} > ${njobs} ? ${njobs} : ${last_task})) ) ## avoids overscheduling if $last_task > $njobs
-##last_task=2 ##<-- uncomment for debugging
-#
-## must list *ALL* previous jobs from step 3
-## this allows us to schedule everything in correct order
-#sim_jobs="sim.1kg.compile.results,sim.1kg.plot.results"
-#for i in $(seq 1 ${num_array_jobs}); do
-#    sim_jobs="${sim_jobs},sim.1kg.expression.${i}"
-#    sim_jobs="${sim_jobs},sim.1kg.parse.results.${i}"
-#done
-#
-## schedule TWAS simulations
-## each iteration of this loop schedules 1 array job
-#for i in $(seq 1 ${num_array_jobs}); do
-##i=1 ##<-- uncomment for debugging
-#
-#    # execute with SGE framework
-#    qsub -N "sim.1kg.twas.${i}" \
-#         -v "command_file=${simulation_joblist},outfiles=${simulation_outfile_list},errfiles=${simulation_errfile_list}" \
-#         -t ${first_task}-${last_task} \
-#         -e "${logdir}" \
-#         -o "${logdir}" \
-#         -l mem_free="${memory_limit}",scratch="${scratch_memory}",h_rt="${h_rt}" \
-#         ${BASH_qsub_template}
-#
-#    first_task=$(echo $(( i*my_max_tasks + 1)) )
-#    last_task=$(echo $(( (i + 1)*my_max_tasks)) )
-#
-#    # readjust to keep from overscheduling jobs, using ${njobs} as scheduling cap
-#    first_task=$(echo $(( ${first_task} > ${njobs} ? ${njobs} : ${first_task} )) )
-#    last_task=$(echo $(( ${last_task} > ${njobs} ? ${njobs} : ${last_task})) )
-#done ##<-- comment for debugging
-#
-## update simulation jobs
-#for i in $(seq 1 ${num_array_jobs}); do
-#    sim_jobs="${sim_jobs},sim.1kg.twas.${i}"
-#done
-#
-## how many data files do we have?
-## will assign 1 core per data file
-## must sort in order to schedule jobs in relative order
-##find ${output_data_dir} -type f -name "*.Rdata" | sort > ${Rdata_files}
-#qsub -N "sim.1kg.compile.twas.results" \
-#     -hold_jid "${sim_jobs}" \
-#     -v "scratchdir=${output_results_dir},results_file=${results_file}" \
-#     -e "${logdir}" \
-#     -o "${logdir}" \
-#     -l mem_free="${memory_limit}",scratch="${scratch_memory}",h_rt="${h_rt}" \
-#     ${BASH_qsub_compile_results}
-#
-## update simulation jobs
-#for i in $(seq 1 ${num_array_jobs}); do
-#    sim_jobs="${sim_jobs},sim.1kg.compile.twas.results"
-#done
+    datadir="${thisdir}/../../analysis/prediction_output/prediction_output_data"
+    for prop_shared_eqtl in ${proportions_eqtls[@]}; do
+        for ncausal_genes in ${ncausal_gene_numbers[@]}; do
+            for seed in ${seeds[@]}; do
+                for effect_size in ${effect_sizes[@]}; do
+
+                    outputfilepfx="temp.twas.output.k_${k}.seed_${seed}.same_eqtls_${same_eqtls}.same_eqtl_effects_${same_effects}.prop_shared_eqtl_${prop_shared_eqtl}.same_twas_genes_${same_twas_genes}.same_twas_effects_${same_twas_effects}.ncausal_genes_${ncausal_genes}.effect_size_${effect_size}"
+                    twas_output_path="${outputfilepfx}.txt"
+                    rm -f ${twas_output_path}
+                    touch ${twas_output_path}
+
+                    # output files for nohup
+                    nohup_out="${output_text_dir}/${outputfilepfx}.out"
+                    nohup_err="${output_text_dir}/${outputfilepfx}.err"
+
+                    # write the actual command as echo, append to job list
+                    echo "$RSCRIPT ${R_simulate_twas} --results-directory ${datadir} --output-directory ${outputdir} --output-file-prefix ${outputfilepfx} --num-eQTLs ${k} --proportion-shared-eQTL ${prop_shared_eqtl} --same-eQTLs ${same_eqtls} --same-eQTL-effects ${same_effects} --random-seed ${seed} --same-TWAS-genes ${same_twas_genes} --same-TWAS-effects ${same_twas_effects} --num-genes ${ngenes} --num-samples ${nsamples} --num-causal-genes ${ncausal_genes} --plot-type ${plottype} --effect-size ${effect_size} --TWAS-noise-mean ${twas_mean} --TWAS-noise-standard-deviation ${twas_sd} > ${nohup_out} 2> ${nohup_err}" >> ${simulation_joblist}
+                done
+            done
+        done
+    done
+done
+
+## finally, repeat for the varying admixture proportions
+same_eqtls="FALSE"
+same_effects="TRUE"
+prop_shared_eqtl="0.5"
+k=10
+ncausal_genes=1
+CEU_props=("0" "0.1" "0.2" "0.3" "0.4" "0.5" "0.6" "0.7" "0.8" "0.9" "1") ## <-- note that 0 is NOT 0.0, 1 is NOT 1.0 !!!
+YRI_props=("1" "0.9" "0.8" "0.7" "0.6" "0.5" "0.4" "0.3" "0.2" "0.1" "0") ## blame R for printing double as integer in analysis step 1
+
+# directory of stored results depends on variables
+# assuming that #${CEU_props[@}} == #${YRI_props[@}} here...
+for i in ${!CEU_props[@]}; do
+
+    CEU_prop=${CEU_props[$i]}
+    YRI_prop=${YRI_props[$i]}
+    for seed in ${seeds[@]}; do
+        for effect_size in ${effect_sizes[@]}; do
+
+            outputfilepfx="twas.output.k_${k}.same_eqtls_${same_eqtls}.same_eqtl_effects_${same_effects}.prop_shared_eqtl_${prop_shared_eqtl}.same_twas_genes_${same_twas_genes}.same_twas_effects_${same_twas_effects}.ncausal_genes_${ncausal_genes}.seed_${seed}.CEU_${CEU_prop}.YRI_${YRI_prop}.effect_size_${effect_size}"
+            twas_output_path="${outputfilepfx}.txt"
+            rm -f ${twas_output_path}
+            touch ${twas_output_path}
+
+            # output files for nohup
+            nohup_out="${output_text_dir}/${outputfilepfx}.out"
+            nohup_err="${output_text_dir}/${outputfilepfx}.err"
+
+            # write output log file to list
+            echo "${nohup_out}" >> ${simulation_outfile_list}
+
+            # write error log file to list
+            echo "${nohup_err}" >> ${simulation_errfile_list}
+
+            # write the actual command as echo, append to job list
+            echo "$RSCRIPT ${R_simulate_twas} --results-directory ${datadir} --output-directory ${output_results_dir} --output-file-prefix ${outputfilepfx} --num-eQTLs ${k} --proportion-shared-eQTL ${prop_shared_eqtl} --same-eQTLs ${same_eqtls} --same-eQTL-effects ${same_effects} --random-seed ${seed} --same-TWAS-genes ${same_twas_genes} --same-TWAS-effects ${same_twas_effects} --num-genes ${ngenes} --num-samples ${nsamples} --num-causal-genes ${ncausal_genes} --plot-type ${plottype} --effect-size ${effect_size} --TWAS-noise-mean ${twas_mean} --TWAS-noise-standard-deviation ${twas_sd} --CEU-admixture-proportion ${CEU_prop} --YRI-admixture-proportion ${YRI_prop}" >> ${simulation_joblist}
+        done
+    done
+done
+
+# set SGE variables
+h_rt="00:29:59"
+scratch_memory="1G"
+memory_limit="5G"
+logdir="${output_text_dir}"
+
+njobs=$(wc -l ${simulation_joblist} | awk '{ print $1 }')
+#njobs=2
+
+# query SGE system limits, particularly the maximum permissible number of array job tasks
+max_aj_tasks=$(qconf -sconf | grep "max_aj_tasks" | awk '{ print $NF}') ## on UCSF QB3, this is 100k
+my_max_tasks=$(echo $((max_aj_tasks / 2))) ## slightly favor fewer array jobs with more tasks vs. more array jobs with fewer tasks
+
+# how many array jobs do we need to schedule?
+# the +1 is necessary since BASH int division *truncates*
+# if we want 3 tasks split into 2 array jobs, an int div here only yields 1 array job
+# but we need *2* array jobs (1st: tasks 1,2; 2nd: task 3)
+num_array_jobs=$(echo $((njobs / my_max_tasks + 1)))
+
+# will use these indexing variables to schedule tasks appropriately
+first_task=1
+last_task=${my_max_tasks}
+last_task=$(echo $(( ${last_task} > ${njobs} ? ${njobs} : ${last_task})) ) ## avoids overscheduling if $last_task > $njobs
+#last_task=2 ##<-- uncomment for debugging
+
+# must list *ALL* previous jobs from step 3
+# this allows us to schedule everything in correct order
+sim_jobs="sim.1kg.compile.results,sim.1kg.plot.results"
+for i in $(seq 1 ${num_array_jobs}); do
+    sim_jobs="${sim_jobs},sim.1kg.expression.${i}"
+    sim_jobs="${sim_jobs},sim.1kg.parse.results.${i}"
+done
+
+# schedule TWAS simulations
+# each iteration of this loop schedules 1 array job
+for i in $(seq 1 ${num_array_jobs}); do
+#i=1 ##<-- uncomment for debugging
+
+    # execute with SGE framework
+    qsub -N "sim.1kg.twas.${i}" \
+         -v "command_file=${simulation_joblist},outfiles=${simulation_outfile_list},errfiles=${simulation_errfile_list}" \
+         -t ${first_task}-${last_task} \
+         -e "${logdir}" \
+         -o "${logdir}" \
+         -l mem_free="${memory_limit}",scratch="${scratch_memory}",h_rt="${h_rt}" \
+         ${BASH_qsub_template}
+
+    first_task=$(echo $(( i*my_max_tasks + 1)) )
+    last_task=$(echo $(( (i + 1)*my_max_tasks)) )
+
+    # readjust to keep from overscheduling jobs, using ${njobs} as scheduling cap
+    first_task=$(echo $(( ${first_task} > ${njobs} ? ${njobs} : ${first_task} )) )
+    last_task=$(echo $(( ${last_task} > ${njobs} ? ${njobs} : ${last_task})) )
+done ##<-- comment for debugging
+
+# update simulation jobs
+for i in $(seq 1 ${num_array_jobs}); do
+    sim_jobs="${sim_jobs},sim.1kg.twas.${i}"
+done
+
+# how many data files do we have?
+# will assign 1 core per data file
+# must sort in order to schedule jobs in relative order
+#find ${output_data_dir} -type f -name "*.Rdata" | sort > ${Rdata_files}
+qsub -N "sim.1kg.compile.twas.results" \
+     -hold_jid "${sim_jobs}" \
+     -v "scratchdir=${output_results_dir},results_file=${results_file}" \
+     -e "${logdir}" \
+     -o "${logdir}" \
+     -l mem_free="${memory_limit}",scratch="${scratch_memory}",h_rt="${h_rt}" \
+     ${BASH_qsub_compile_results}
+
+# update simulation jobs
+for i in $(seq 1 ${num_array_jobs}); do
+    sim_jobs="${sim_jobs},sim.1kg.compile.twas.results"
+done
 
 # reset SGE variables
 h_rt="00:29:59"
