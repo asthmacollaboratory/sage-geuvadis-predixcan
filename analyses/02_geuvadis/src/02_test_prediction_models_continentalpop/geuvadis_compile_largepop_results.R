@@ -187,6 +187,9 @@ for (i in 1:n) {
 geuvadis.predictions = Reduce(function(x,y) {merge(x, y, all = TRUE)}, datatables)
 fwrite(x = geuvadis.predictions, file = output.path.predictions, row.names = FALSE, quote = FALSE, col.names = TRUE, sep = "\t") 
 
+# summarize prediction results
+geuvadis.results = compute.r2.corr(geuvadis.predictions)
+
 # get genes with results in all populations
 transcripts = geuvadis.results %>%
     group_by(Gene) %>%
@@ -232,3 +235,27 @@ r2.poscorr.commongenes = geuvadis.results %>%
 
 # save this last list to file
 fwrite(x = r2.poscorr.commongenes, file = output.path.r2.poscorr.commongenes, row.names = FALSE, quote = FALSE, col.names = TRUE, sep = "\t") 
+
+# want to know if distributions between poscorr genes, all genes are statistically significant
+# must group by poscorr status (0: not poscorr gene, 1: poscorr gene) and continental origin (EUR or AFR)
+poscorr.dunn.test.results = geuvadis.results %>%
+    mutate(
+        Train_Test = paste(Train_Pop, Test_Pop, sep = "_"),
+        poscorr = as.integer(Gene %in% transcripts.poscorr[[1]]),
+        Train_Continent = ifelse(Train_Pop == "AFR", "AFR", "EUR"),
+        Test_Continent = ifelse(Test_Pop == "AFR", "AFR", "EUR"),
+        Train_Test_Continent = paste(Train_Continent, Test_Continent, sep = "_")
+    ) %>%
+    dunn.test(
+        x = with(., R2),
+        g = with(., interaction(poscorr, Train_Test_Continent)),
+        method = "bonferroni",
+        kw = TRUE,
+        label = TRUE
+    ) %>% as.data.frame %>% as.data.table
+
+# save these results to file
+# for manuscript, the following comparisons are particularly relevant:
+# 0.EUR_EUR - 1.EUR_EUR (predictions within EUR, comparing in/not in poscorr genes)
+# 0.AFR_AFR - 1.AFR_AFR (predictions within AFR, *...*)
+fwrite(x = poscorr.dunn.test.results, file = paste(output.path.r2.poscorr.commongenes, "dunntest.results", sep = "."), sep = "\t", quote = FALSE)
