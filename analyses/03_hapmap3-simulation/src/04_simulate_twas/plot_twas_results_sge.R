@@ -226,14 +226,12 @@ g1 = x %>%
         ) + 
         ggtitle(
             bquote("Distributions of "~t~"-statistics from TWAS association tests in AA, CEU, and YRI"),
-            #subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTL per gene and effect size "~beta~" = 0.1")
             subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTL per gene and heritability "~h^2~" = 0.95")
         ) + 
         ylab(bquote(t~"-statistic")) +
         xlab("Train - Test scenario") +
         scale_fill_manual(values  = my.fillcolors) +
         scale_color_manual(values = my.linecolors) + 
-       #  scale_linetype_manual(values = my.linetypes.trainpop) +
         theme_klk() +
         theme(
              legend.position = "none",
@@ -391,11 +389,8 @@ g4 = x %>%
     dplyr::mutate(
         Train_Test = paste(Train_Pop, Test_Pop, sep = " to ")
     ) %>%
-    #ggplot(., aes(x = log10(Original_Model), y = Post_Hoc_Power, color = Train_Test)) +
     ggplot(., aes(x = h2, y = Post_Hoc_Power, color = Train_Test)) +
-        #geom_point(aes(shape = Train_Test), alpha = 0.2, position = my.jitter) +
         geom_smooth(aes(linetype = Train_Test), method = "glm", method.args = list(family = "binomial"), se = TRUE, alpha = 0.1, span = 0.5) +
-        #geom_vline(xintercept = log10(0.1), color = "red", linetype = "dotdash") +
         geom_vline(xintercept = 0.95, color = "red", linetype = "dotdash") +
         scale_shape_manual(
             name   = "Train to Test",
@@ -429,7 +424,6 @@ g4 = x %>%
             color    = guide_legend(keywidth = 6, keyheight = 1)
         ) +
         ylab("Power") +
-        #xlab(bquote(log[10]~"("~beta~")")) +
         xlab(bquote("Heritability ("~h^2~")")) +
         ggtitle(
             bquote("Power of TWAS association tests with cross-population predicted expression"),
@@ -511,7 +505,6 @@ g6 = x.power %>%
         xlab("Train-test scenario") +
         ggtitle(
             bquote("Power of TWAS association tests in AA, CEU, and YRI"),
-            #subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTL per gene and effect size "~beta~" = 0.1")
             subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTL per gene and "~h^2~" = 0.95")
         )
 
@@ -542,7 +535,6 @@ g7 = x.power %>%
         xlab("Train-test scenario") +
         ggtitle(
             bquote("Power of TWAS association tests in AA, CEU, and YRI"),
-            #subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTL per gene and effect size "~beta~" = 0.1")
             subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTL per gene and heritability "~h^2~" = 0.95")
         )
 
@@ -593,164 +585,121 @@ g8.path = file.path(output.dir, paste("twas.sim.results.power.heatmap.admixvary"
 ggsave(g8, file = g8.path, units = "in", width = 18, height = 6)
 
 
-## OLD CODE ###
+# as supplement to previous heatmap (g8), make a line plot with similar info
+# this plot has added benefit of deemphasizing CEU <--> YRI relationships, which don't vary with admixture proportion 
+x.power2 = x %>%
+    dplyr::filter(
+        Original_Model %in% c(0.01, 0.025, 0.05) &
+        !is.na(YRI_proportion) &
+        Train_Pop != Test_Pop
+    ) %>%
+    select(Train_Pop, Test_Pop, Seed, Original_Model, YRI_proportion, Heritability, P_value) %>%
+    mutate(
+        Train_Test = factor(paste(Train_Pop, Test_Pop, sep = " to "), levels = my.breaks.allpop.reverse)
+    ) %>%
+    mutate(
+        Train_Test = dplyr::recode(Train_Test,
+            `YRI to AA` = "YRI to AD",
+            `AA to YRI` = "AD to YRI",
+            `CEU to AA` = "CEU to AD",
+            `AA to CEU` = "AD to CEU",
+            `YRI to YRI` = "YRI to YRI",
+            `CEU to CEU` = "CEU to CEU"
+        )
+    ) %>%
+    group_by(Train_Test, Seed, Original_Model, YRI_proportion) %>%
+    summarize(
+        Post_Hoc_Power = sum(P_value < 0.05/ngenes),
+        h2 = mean(Heritability)
+    )
+x.power2 = x.power2 %>%
+    group_by(Original_Model) %>%
+    summarize(Heritability = paste0("Heritability = ", round(mean(h2), 2))) %>%
+    merge(., x.power2, by = "Original_Model")
 
+# this applies a light grey color to pop-into-itself scenarios
+my.colors.withgrey.admix = c(
+    "CEU to AD"  = "blue",
+    "YRI to AD"  = "red",
+    "AD to CEU"  = "black",
+    "AD to YRI"  = "black",
+    "YRI to CEU" = "lightgrey",
+    "CEU to YRI" = "lightgrey"
+)
+my.linetypes.admix = c(
+    "CEU to AD"  = "solid",
+    "YRI to AD"  = "solid",
+    "AD to CEU"  = "dashed",
+    "AD to YRI"  = "dotted",
+    "YRI to CEU" = "dashed",
+    "CEU to YRI" = "dotted"
+)
+my.colors.admix = c(
+    "CEU to AD"  = "blue",
+    "YRI to AD"  = "red",
+    "AD to CEU"  = "black",
+    "AD to YRI"  = "black",
+    "YRI to CEU" = "red",
+    "CEU to YRI" = "blue"
+)
+my.shapes.admix = c(
+    "CEU to AD"  = "circle",
+    "YRI to AD"  = "circle",
+    "AD to CEU"  = "square",
+    "AD to YRI"  = "triangle",
+    "YRI to CEU" = "square",
+    "CEU to YRI" = "triangle"
+)
+my.breaks.diffpop.admix = c(
+    "YRI to AD",
+    "AD to YRI",
+    "AD to CEU",
+    "CEU to AD",
+    "YRI to CEU",
+    "CEU to YRI"
+)
+x.power.admix.summary = x.power2  %>%
+    group_by(Train_Test, Original_Model, YRI_proportion) %>%
+    summarize(
+        Power = sum(Post_Hoc_Power) / nseeds,
+        Power_SE = sd(Post_Hoc_Power) / sqrt(n()),
+        Power_CI_lo = Power - 1.96*Power_SE,
+        Power_CI_hi = Power + 1.96*Power_SE,
+        h2_Mean = mean(h2),
+        h2_SE = sd(h2) / sqrt(n())
+    ) %>%
+    as.data.table
 
-## make factor of train --> test scenarios
-#twas.results = twas.results %>%
-#    mutate(
-#        Train_Test = factor(
-#            paste(Train_Pop, Test_Pop, sep = " to "),
-#            levels = c(
-#                "YRI to AA",
-#                "AA to YRI",
-#                "AA to CEU",
-#                "CEU to AA",
-#                "YRI to CEU",
-#                "CEU to YRI",
-#                "AA to AA",
-#                "CEU to CEU",
-#                "YRI to YRI"
-#            )
-#        )
-#    )
-#
-## facet plot of distributions of t-statistics
-## 9 facets in 3x3 grid
-## rows are Test_Pop, cols are Train_pop 
-#g = twas.results %>%
-#    ggplot(., aes(x = T_value)) +
-#        geom_histogram(aes(y = ..density..), binwidth=0.2) +
-#        geom_density() +
-#        facet_grid(cols = vars(Train_Pop), rows = vars(Test_Pop)) +
-#        xlim(-5, 5) +
-#        ggtitle(bquote("Distribution of "~t~"-statistics from association tests in AA, CEU, and YRI"),
-#            subtitle = "Expression variously imputed from AA, CEU, and YRI") +
-#        geom_vline(xintercept = 0, color = "red", linetype = "dashed") +
-#        xlab(bquote(t~"-statistic")) +
-#        ylab("Density")
-#tplot.histogram.path = file.path(output.dir, paste(output.filepfx, "tstatistics", "histogram", plot.type, sep = ".")) 
-#ggsave(plot = g, filename = tplot.histogram.path, type = "cairo")
-##mutate(Train_Test = paste(Train_Pop, Test_Pop, sep = "_")) %>%
-#
-## boxplots of distributions of t-statistics
-## rows are Test_Pop, cols are Train_pop 
-#my.fillcolors = c("AA" = "gray95", "CEU" = "steelblue", "YRI" = "red")
-#my.linecolors = c("AA" = "black", "CEU" = "darkblue", "YRI" = "firebrick4")
-#my.linetypes = c("AA" = "solid", "CEU" = "dashed", "YRI" = "dotted")
-#g = twas.results %>%
-#    ggplot(., aes(
-#            x = Train_Test,
-#            y = T_value,
-#            fill = Train_Pop,
-#            color = Test_Pop)
-#        ) +
-#        geom_boxplot(
-#            outlier.color = "black",
-#            lwd = 1
-#        ) +
-#        ggtitle(
-#            bquote("Distributions of "~t~"-statistics from association tests in AA, CEU, and YRI"),
-#            subtitle = "Expression variously imputed from AA, CEU, and YRI"
-#        ) +
-#        ylab(bquote(t~"-statistic")) +
-#        xlab("Train - Test scenario") +
-#        scale_fill_manual(values  = my.fillcolors) +
-#        scale_color_manual(values = my.linecolors) + 
-#      #  scale_linetype_manual(values = my.linetypes) +
-#        theme(
-#            text = element_text(size = 16),
-#            panel.background = element_rect(fill = "white"),
-#            panel.grid.major = element_line(size = 0.5, linetype = "solid", color = "lightgrey"),
-#            panel.grid.minor = element_line(size = 0.25, linetype = "dashed", color = "lightgrey"),
-#            legend.position = "none"
-#        )
-#
-#
-#tplot.boxplot.path = file.path(output.dir, paste(output.filepfx, "tstatistics", "boxplot", plot.type, sep = ".")) 
-#ggsave(plot = g, filename = tplot.boxplot.path, type = "cairo", width = 10, height = 15, unit = "in")
-#            #linetype = Test_Pop)
-#            #color = Test_Pop)
-#        #scale_fill_manual(values = my.colors) +
-#        #geom_hline(yintercept = 0, color = "black", linetype = "twodash") +
-#
-## boxplots of -log10 p-values
-#g = twas.results %>%
-#    ggplot(., aes(
-#            x = Train_Test,
-#            y = -log10(P_value),
-#            fill = Train_Pop,
-#            color = Test_Pop)
-#        ) +
-#        geom_boxplot(
-#            outlier.color = "black",
-#            lwd = 1 
-#        ) +
-#        ggtitle(
-#            bquote("Distributions of "~p~"-values from association tests in AA, CEU, and YRI"),
-#            subtitle = "Expression variously imputed from AA, CEU, and YRI"
-#        ) +
-#        ylab(bquote(-log10~"("~p~"-value)")) +
-#        xlab("Train - Test scenario") +
-#        scale_fill_manual(values  = my.fillcolors) +
-#        scale_color_manual(values = my.linecolors) + 
-#      #  scale_linetype_manual(values = my.linetypes) +
-#        theme(
-#            text = element_text(size = 16),
-#            panel.background = element_rect(fill = "white"),
-#            panel.grid.major = element_line(size = 0.5, linetype = "solid", color = "lightgrey"),
-#            panel.grid.minor = element_line(size = 0.25, linetype = "dashed", color = "lightgrey"),
-#            legend.position = "none"
-#        ) +
-#        geom_hline(yintercept = -log10(0.05/98), color = "red", linetype = "twodash") +
-#        geom_point(
-#            data = subset(twas.results, Original_Model != 0),
-#            aes(x = Train_Test, y = -log10(P_value)),
-#            color = "purple", size = 5, shape = 15
-#        ) 
-#tplot.pvalue.path = file.path(output.dir, paste(output.filepfx, "pvalues", "boxplot", plot.type, sep = ".")) 
-#ggsave(plot = g, filename = tplot.pvalue.path, type = "cairo", width = 10, height = 15, unit = "in")
-#
-## save a version that better shows the p-value distribution without outliers
-#g = g + ylim(0,6)
-#tplot.pvalue.path = file.path(output.dir, paste(output.filepfx, "pvalues", "boxplot", "zoomed", plot.type, sep = ".")) 
-#ggsave(plot = g, filename = tplot.pvalue.path, type = "cairo", width = 10, height = 15, unit = "in")
-#
-#
-## QQ plot of p-values, also in facet
-#
-## make a transformed copy of the p-values for plotting
-#xlim = NULL
-#ylim = NULL
-#df.copy = data.frame(
-#    #"expected"  = -log10(ppoints(length(twas.results$P_value))),
-#    #"expected"  = -log10(ppoints(rep(c(1:ngenes), 9))),
-#    "P_value"  = twas.results$P_value,
-#    "Train_Pop" = twas.results$Train_Pop,
-#    "Test_Pop"  = twas.results$Test_Pop
-#)
-#df.copy = df.copy %>%
-#    group_by(Train_Pop, Test_Pop) %>%
-#    arrange(Train_Pop, Test_Pop, desc(P_value)) %>%
-#    mutate(
-#        "observed" = -log10(P_value),
-#        "expected" = -log10(ppoints(ngenes))
-#    )
-#
-#g = ggplot(df.copy, aes(x = expected, y = observed)) + geom_point()
-#
-## draw the qq-line
-#g = g + geom_abline(intercept = 0, slope = 1, color = "red")
-#
-## prettify the axis labels
-#g = g + xlab("Theoretical Quantiles") + ylab("Sample Quantiles")
-#
-## adjust the axis limits
-#g = g + coord_cartesian(xlim = xlim, ylim = ylim)
-#
-## apply facet
-#g = g + facet_grid(cols = vars(Train_Pop), rows = vars(Test_Pop))
-#
-#qqplot.path = file.path(output.dir, paste(output.filepfx, "qqplot", plot.type, sep = ".")) 
-#ggsave(plot = g, filename = qqplot.path, type = "cairo") 
-
+g9 = ggplot(x.power2, aes(x = YRI_proportion, y = Post_Hoc_Power, color = Train_Test)) +
+        geom_smooth(aes(linetype = Train_Test), method = "glm", method.args = list(family = "binomial"), se = TRUE, alpha = 0.1, span = 0.5) +
+        scale_shape_manual(
+            name   = "Train to Test",
+            values = my.shapes.admix,
+            breaks = my.breaks.diffpop.admix
+        ) +
+        scale_linetype_manual(
+            name   = "Train to Test",
+            values = my.linetypes.admix,
+            breaks = my.breaks.diffpop.admix
+        )  +
+        scale_color_manual(
+            name   = "Train to Test",
+            values = my.colors.withgrey.admix,
+            breaks = my.breaks.diffpop.admix
+        ) +
+        facet_grid(~ Heritability) +
+        theme_klk() +
+        theme(legend.key.width = unit(1, "in")) + 
+        guides(
+            fill     = guide_legend(keywidth = 1, keyheight = 1),
+            linetype = guide_legend(keywidth = 6, keyheight = 1),
+            color    = guide_legend(keywidth = 6, keyheight = 1)
+        ) +
+        ylab("Power") +
+        xlab("YRI proportion") +
+        ggtitle(
+            bquote("Power of TWAS association tests for varying proportions of YRI admixture"),
+            subtitle = bquote(k~" = 10 eQTLs per gene, 50% shared eQTLs between populations") 
+        )
+g9.path = file.path(output.dir, paste("twas.sim.results.power.curves.admixvary", plot.type, sep = "."))
+ggsave(g9, file = g9.path, units = "in", width = 18, height = 6)
