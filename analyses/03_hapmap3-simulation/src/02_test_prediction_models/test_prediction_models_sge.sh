@@ -142,7 +142,7 @@ for gene in ${genenames[@]}; do
                     echo "${nohup_err}" >> ${simulation_errfile_list}
 
                     # write the actual command as echo, append to job list
-                    echo "$RSCRIPT $R_simulate_crosspop_pred --gene-name \"${gene}\" --genotypes-pop1 \"${ceu_file}\" --genotypes-pop2 \"${yri_file}\" --genotypes-admix \"${aa_file}\" --output-directory \"${output_data_dir}\" --same-eqtls ${same_eqtls} --same-eqtl-effects ${same_effects} --nfolds-internal ${nfolds_internal} --nfolds-external ${nfolds_external} --nfolds-parallel ${nfolds_parallel} --num-eqtls ${k} --random-seed ${seed} --fraction-overlapping-eqtls ${prop} > ${nohup_out} 2> ${nohup_err}" >> ${simulation_joblist}
+                    echo "$RSCRIPT $R_simulate_crosspop_pred --gene-name ${gene} --genotypes-pop1 ${ceu_file} --genotypes-pop2 ${yri_file} --genotypes-admix ${aa_file} --output-directory ${output_data_dir} --same-eqtls ${same_eqtls} --same-eqtl-effects ${same_effects} --nfolds-internal ${nfolds_internal} --nfolds-external ${nfolds_external} --nfolds-parallel ${nfolds_parallel} --num-eqtls ${k} --random-seed ${seed} --fraction-overlapping-eqtls ${prop}" >> ${simulation_joblist}
                 done
             done
 
@@ -153,7 +153,7 @@ for gene in ${genenames[@]}; do
 
                 nohup_out="${output_text_dir}/${gene}.model-${same_eqtls}.effects-${same_effects}.k-${k}.seed-${seed}.prop-${prop}.out"
                 nohup_err="${output_text_dir}/${gene}.model-${same_eqtls}.effects-${same_effects}.k-${k}.seed-${seed}.prop-${prop}.err"
-                echo "$RSCRIPT $R_simulate_crosspop_pred --gene-name \"${gene}\" --genotypes-pop1 \"${ceu_file}\" --genotypes-pop2 \"${yri_file}\" --genotypes-admix \"${aa_file}\" --output-directory \"${output_data_dir}\" --same-eqtls ${same_eqtls} --same-eqtl-effects ${same_effects} --nfolds-internal ${nfolds_internal} --nfolds-external ${nfolds_external} --nfolds-parallel ${nfolds_parallel} --num-eqtls ${k} --random-seed ${seed} --fraction-overlapping-eqtls ${prop} > ${nohup_out} 2> ${nohup_err}" >> ${simulation_joblist}
+                echo "$RSCRIPT $R_simulate_crosspop_pred --gene-name ${gene} --genotypes-pop1 ${ceu_file} --genotypes-pop2 ${yri_file} --genotypes-admix ${aa_file} --output-directory ${output_data_dir} --same-eqtls ${same_eqtls} --same-eqtl-effects ${same_effects} --nfolds-internal ${nfolds_internal} --nfolds-external ${nfolds_external} --nfolds-parallel ${nfolds_parallel} --num-eqtls ${k} --random-seed ${seed} --fraction-overlapping-eqtls ${prop}" >> ${simulation_joblist}
                 echo "${nohup_out}" >> ${simulation_outfile_list}
                 echo "${nohup_err}" >> ${simulation_errfile_list}
 
@@ -229,7 +229,7 @@ last_task=$(echo $(( ${last_task} > ${njobs} ? ${njobs} : ${last_task})) )
 #last_task=2 ##<-- uncomment for debugging
 
 # each iteration of this loop schedules 1 array job
-for i in $(seq 1 ${num_array_jobs}); do
+for i in $(seq 1 ${num_array_jobs}); do ##<-- COMMENT HERE for debugging
 #i=1 ##<-- uncomment for debugging
 
     # execute with SGE framework

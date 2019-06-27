@@ -474,21 +474,29 @@ if ( same.eQTLs ) {
     # preserve those for pop2 and admix pop
     # for eqtls NOT in common, pop2 gets some random sample from elements of 1:M not in snp.model.1
     # this draws eqtls unique to pop2 from whatever eQTL positions are NOT in pop1
+#    # then sample remaining eqtls from pop1, pop2 in ancestral fraction (20% of pop1, 80% of pop2)
+#    # note: the *ancestral* proportions of eqtls from each ancestral pop are fixed, but the % shared eqtls varies
+#    # if pop1, pop2 share no eqtls, then admix pop will still have eqtls in common with each ancestral pop
+#    eqtls.in.common = sample(snp.model.1, size = floor(frac.same.eQTLs * k), replace = FALSE)
     # for admix pop, preserve eqtls in common b/w pop1 and pop2
-    # then sample remaining eqtls from pop1, pop2 in ancestral fraction (20% of pop1, 80% of pop2)
-    # note: the *ancestral* proportions of eqtls from each ancestral pop are fixed, but the % shared eqtls varies
-    # if pop1, pop2 share no eqtls, then admix pop will still have eqtls in common with each ancestral pop
-    eqtls.in.common = sample(snp.model.1, size = floor(frac.same.eQTLs * k), replace = FALSE)
+    # then draw remaining eqtls from positions NOT in pop1, pop2
+    eqtls.in.common = snp.model.1[1:floor(frac.same.eQTLs * k)]
     eqtls.different = sample(
         setdiff(1:M, snp.model.1),
         size    = ceiling((1 - frac.same.eQTLs) * k),
         replace = FALSE
     )
-    snp.model.2     = c(eqtls.in.common, eqtls.different)
-    snp.model.admix = c(eqtls.in.common,
-        sample(snp.model.1, size = floor(admix.prop.pop1 * k), replace = FALSE),
-        sample(snp.model.2, size = ceiling(admix.prop.pop2 * k), replace = FALSE)
+    snp.model.2 = c(eqtls.in.common, eqtls.different)
+#    snp.model.admix = c(eqtls.in.common,
+#        sample(snp.model.1, size = floor(admix.prop.pop1 * k), replace = FALSE),
+#        sample(snp.model.2, size = ceiling(admix.prop.pop2 * k), replace = FALSE)
+#    )
+    eqtls.different.admix = sample(
+        setdiff(1:M, union(snp.model.1, snp.model.2)),
+        size    = ceiling( ( 1 - frac.same.eQTLs) * k ),
+        replace = FALSE
     )
+    snp.model.admix = c(eqtls.in.common, eqtls.different.admix)
 }
 
 # specify models for pop 2 and admixed pop
