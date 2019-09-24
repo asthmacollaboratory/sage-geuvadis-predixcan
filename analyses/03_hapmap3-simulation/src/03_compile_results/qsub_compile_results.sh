@@ -4,7 +4,6 @@
 #$ -r y                            # -- tell the system that if a job crashes, it should be restarted
 #$ -j y                            # -- tell the system that the STDERR and STDOUT should be joined
 #$ -cwd                            # -- start the job in the current working directory
-#$ -l arch=linux-x64               # -- SGE resources (CPU type)
 # ==========================================================================================
 # coded by Kevin L. Keys (2019)
 #
@@ -33,23 +32,31 @@ results_file=${results_file}
 # executable code
 # ==========================================================================================
 
+# get absolute path of scratch directory
+# this is precaution against strange behavior from GNU "find"
+scratchdir_absolutepath=$(realpath ${scratchdir})
+
 # start by noting current date, time, and process
 echo "Date: $(date)"
 echo "Host name: $(hostname)"
 
-echo "This job will parse results files at ${scratchdir}"
+echo "This job will parse results files at ${scratchdir_absolutepath}"
 echo "Results will be saved to ${results_file}"
 
 # need header for the file
 # can grab it from 1st line of any matching *_results.txt file
-one_file=$(find ${scratchdir} -type f -name "*_results.txt" | head -n 1)
+one_file=$(find ${scratchdir_absolutepath} -maxdepth 1 -type f -name "*_results.txt" | head -n 1)
 head -n 1 ${one_file} > ${results_file}
 
-cat ${scratchdir}/*_results.txt | grep -v "==" | grep -v "gene" | grep -v "Gene_Name" >> ${results_file}
+echo "Added header to results file"
+echo "Compiling all results, this may take awhile..."
+
+#cat ${scratchdir}/*_results.txt | grep -v "==" | grep -v "gene" | grep -v "Gene_Name" >> ${results_file}
+find $(realpath ${scratchdir_absolutepath}) -maxdepth 1 -type f -name "*_results.txt" -exec grep --ignore-case --no-filename --invert-match "gene" {} +  >> ${results_file}
 
 echo "Results parsed to file ${results_file}"
-echo "Cleaning up ${scratchdir}..."
-find ${scratchdir} -type f -name "*_results.txt" -delete
+#echo "Cleaning up ${scratchdir}..."
+#find ${scratchdir_absolutepath} -maxdepth 1 -type f -name "*_results.txt" -delete
 
 # append successful exit + job info
 echo "job ${JOB_ID} complete! report:"

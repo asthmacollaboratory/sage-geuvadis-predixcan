@@ -210,10 +210,12 @@ theme_klk = function(){
 
 # boxplot of t-statistics for each train-test scenario
 # serves as proxy for how p-values would behave
+cat("plotting g1\n\n")
 g1 = x %>%
     dplyr::filter(
         Original_Model == 0.1 &
-        is.na(YRI_proportion)
+        YRI_proportion == 0.8
+        #is.na(YRI_proportion)
     ) %>% 
     mutate(Train_Test = paste(Train_Pop, Test_Pop, sep = " to ")) %>% 
     mutate(
@@ -375,10 +377,12 @@ my.colors.withgrey = c(
     "YRI to YRI" = "lightgrey"
 )
 
+cat("plotting g4\n\n")
 g4 = x %>%
     dplyr::filter(
         Original_Model != 0 &
-        is.na(YRI_proportion)
+        YRI_proportion == 0.8
+        #is.na(YRI_proportion)
     ) %>%
     select(Train_Pop, Test_Pop, Seed, Original_Model, Prop_Shared_eQTL, Power, P_value, Heritability) %>%
     group_by(Train_Pop, Test_Pop, Seed, Original_Model, Prop_Shared_eQTL) %>%
@@ -438,7 +442,8 @@ ggsave(g4, file = g4.path, units = "in", width = 18, height = 6)
 x.power = x %>%
     dplyr::filter(
         Original_Model == 0.1 &
-        is.na(YRI_proportion)
+        YRI_proportion == 0.8
+        #is.na(YRI_proportion)
     ) %>%
     select(Train_Pop, Test_Pop, Seed, Original_Model, Prop_Shared_eQTL, Same_Causal_eQTL, P_value, Heritability) %>%
     group_by(Train_Pop, Test_Pop, Seed, Original_Model, Prop_Shared_eQTL, Same_Causal_eQTL) %>%
@@ -459,6 +464,7 @@ x.power = x %>%
     )
 
 # busy bar chart, including all variables, useful for supplement
+cat("plotting g5\n\n")
 g5 = ggplot(x.power, aes(x = Train_Test, y = Power, fill = Train_Test, color = Train_Test, linetype = Train_Test))  +
         scale_fill_manual(values  = my.fillcolors.9) +
         scale_color_manual(values = my.linecolors.9) +
@@ -487,6 +493,7 @@ g5 = ggplot(x.power, aes(x = Train_Test, y = Power, fill = Train_Test, color = T
             )
         )
 
+cat("plotting g6\n\n")
 g6 = x.power %>%
     dplyr::filter(
         !(Train_Test %in% c("AA to AA", "CEU to CEU", "YRI to YRI")) &
@@ -512,6 +519,7 @@ g6.path = file.path(output.dir, paste("twas.sim.results.power.barcharts", plot.t
 ggsave(g6, file = g6.path, units = "in", width = 18, height = 6)
 
 # more complete copy of previous plot, perhaps useful for demonstration purposes
+cat("plotting g7\n\n")
 g7 = x.power %>%
     ungroup %>%
     mutate(
@@ -545,6 +553,7 @@ ggsave(g7, file = g7.path, units = "in", width = 18, height = 6)
 x.power.admix = x %>%
     dplyr::filter(
         Original_Model %in% c(0.01, 0.025, 0.05) &
+        Prop_Shared_eQTL == 0.5 &
         Train_Pop != Test_Pop
     ) %>%
     select(Train_Pop, Test_Pop, Seed, Original_Model, YRI_proportion, Heritability, P_value) %>%
@@ -571,6 +580,7 @@ x.power.admix = x.power.admix %>%
     summarize(Heritability_Mean = paste0("Heritability = ", round(mean(h2_Mean), 2))) %>%
     merge(., x.power.admix, by = "Original_Model")
 
+cat("plotting g8\n\n")
 g8 = ggplot(x.power.admix, aes(x = Train_Test, y = YRI_proportion, fill = Power)) +
     geom_tile() +
     geom_text(aes(label = round(Power, 2)), color = "white") +
@@ -590,8 +600,9 @@ ggsave(g8, file = g8.path, units = "in", width = 18, height = 6)
 x.power2 = x %>%
     dplyr::filter(
         Original_Model %in% c(0.01, 0.025, 0.05) &
-        !is.na(YRI_proportion) &
+        Prop_Shared_eQTL == 0.5 &
         Train_Pop != Test_Pop
+        #!is.na(YRI_proportion) &
     ) %>%
     select(Train_Pop, Test_Pop, Seed, Original_Model, YRI_proportion, Heritability, P_value) %>%
     mutate(
@@ -670,6 +681,7 @@ x.power.admix.summary = x.power2  %>%
     ) %>%
     as.data.table
 
+cat("plotting g9\n\n")
 g9 = ggplot(x.power2, aes(x = YRI_proportion, y = Post_Hoc_Power, color = Train_Test)) +
         geom_smooth(aes(linetype = Train_Test), method = "glm", method.args = list(family = "binomial"), se = TRUE, alpha = 0.1, span = 0.5) +
         scale_shape_manual(

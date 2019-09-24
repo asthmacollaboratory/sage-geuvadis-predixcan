@@ -1,4 +1,4 @@
-###!/usr/bin/env Rscript --vanilla
+#!/usr/bin/env Rscript --vanilla
 # ==========================================================================================
 # coded by Kevin L. Keys (2018)
 #
@@ -14,17 +14,17 @@
 # ==========================================================================================
 
 # don't emit warnings, only errors
-options(warn = -1)
+#options("warn" = -1)
 
 # ==========================================================================================
 # libraries
 # ==========================================================================================
-suppressMessages(library(glmnet))
-suppressMessages(library(methods))
-suppressMessages(library(assertthat))
-suppressMessages(library(data.table))
-suppressMessages(library(doParallel))
-suppressMessages(library(optparse))
+suppressMessages(library("methods"))
+suppressMessages(library("glmnet"))
+suppressMessages(library("assertthat"))
+suppressMessages(library("data.table"))
+suppressMessages(library("doParallel"))
+suppressMessages(library("optparse"))
 
 
 # parse command line variables
@@ -463,7 +463,7 @@ if ( same.eQTL.betas ) {
     eqtl.effects.admix = rnorm(k, eqtl.mean, eqtl.sd)
 }
 
-# should pop2 and admixed pop use same eQTLs as pop 1?
+# should pop2 and admixed pop use same eQTL positions as pop 1?
 # if not, then simulate new ones
 if ( same.eQTLs ) {
     snp.model.2     = snp.model.1
@@ -474,23 +474,29 @@ if ( same.eQTLs ) {
     # preserve those for pop2 and admix pop
     # for eqtls NOT in common, pop2 gets some random sample from elements of 1:M not in snp.model.1
     # this draws eqtls unique to pop2 from whatever eQTL positions are NOT in pop1
-#    # then sample remaining eqtls from pop1, pop2 in ancestral fraction (20% of pop1, 80% of pop2)
-#    # note: the *ancestral* proportions of eqtls from each ancestral pop are fixed, but the % shared eqtls varies
-#    # if pop1, pop2 share no eqtls, then admix pop will still have eqtls in common with each ancestral pop
-#    eqtls.in.common = sample(snp.model.1, size = floor(frac.same.eQTLs * k), replace = FALSE)
     # for admix pop, preserve eqtls in common b/w pop1 and pop2
     # then draw remaining eqtls from positions NOT in pop1, pop2
-    eqtls.in.common = snp.model.1[1:floor(frac.same.eQTLs * k)]
+#    eqtls.in.common = sample(
+#        snp.model.1,
+#        size = floor(frac.same.eQTLs * k),
+#        replace = FALSE
+#    )
+    eqtls.in.common = head(snp.model.1, floor(frac.same.eQTLs * k))
+    if ( length(eqtls.in.common) == 0 ) {
+        # ensure that empty set is typed correctly as an integer
+        eqtls.in.common = integer()
+    }
+    if ( identical(eqtls.in.common, 0) ) {
+        # replace "0" index w/ empty integer for safe c() later 
+        eqtls.in.common = integer() 
+    }
     eqtls.different = sample(
         setdiff(1:M, snp.model.1),
         size    = ceiling((1 - frac.same.eQTLs) * k),
         replace = FALSE
     )
     snp.model.2 = c(eqtls.in.common, eqtls.different)
-#    snp.model.admix = c(eqtls.in.common,
-#        sample(snp.model.1, size = floor(admix.prop.pop1 * k), replace = FALSE),
-#        sample(snp.model.2, size = ceiling(admix.prop.pop2 * k), replace = FALSE)
-#    )
+
     eqtls.different.admix = sample(
         setdiff(1:M, union(snp.model.1, snp.model.2)),
         size    = ceiling( ( 1 - frac.same.eQTLs) * k ),
@@ -500,8 +506,9 @@ if ( same.eQTLs ) {
 }
 
 # specify models for pop 2 and admixed pop
-beta.2[snp.model.2]         = eqtl.effects.2
-beta.admix[snp.model.admix] = eqtl.effects.admix
+# adding 1:k ensures that k eQTLs are added
+beta.2[snp.model.2[1:k]]         = eqtl.effects.2
+beta.admix[snp.model.admix[1:k]] = eqtl.effects.admix
 
 # specify the phenotype/environmental noise
 # this is parametrized by the desired heritability h2 and # of eQTLs k

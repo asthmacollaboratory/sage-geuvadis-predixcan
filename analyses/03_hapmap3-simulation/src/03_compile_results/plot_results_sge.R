@@ -65,7 +65,8 @@ k.value = opt$num_eQTL
 
 # plots for k == 1 must be produced separately
 # use variable K to control which plot is produced
-K = c(5,10,20)
+#K = c(5,10,20)
+K = c(10,20,40)
 
 # ==========================================================================================
 # subroutines
@@ -73,15 +74,15 @@ K = c(5,10,20)
 
 # subroutine to make faceted corr plot
 make.corr.plot = function(x, k.val = 1, binwidth = 0.01, xlim.lo = -1, xlim.hi = 1, ylim.lo = 0, ylim.hi = 25000){
-corr.plot = x %>%
-    dplyr::filter(k == k.val) %>%
-    ggplot(aes(x = Correlation)) +
-        geom_histogram(binwidth = binwidth, color = "black", fill = "white") +
-        #facet_grid(Train_Pop ~ Test_Pop) +
-        ggtitle("Cross-population imputation accuracy", subtitle = paste0("Correlation for causal number of eQTLs k = ", k.val)) +
-        xlab(expression(Spearman~italic(rho))) +
-        xlim(xlim.lo, xlim.hi) +
-        ylim(ylim.lo, ylim.hi)
+    corr.plot = x %>%
+        dplyr::filter(k == k.val) %>%
+        ggplot(aes(x = Correlation)) +
+            geom_histogram(binwidth = binwidth, color = "black", fill = "white") +
+            #facet_grid(Train_Pop ~ Test_Pop) +
+            ggtitle("Cross-population imputation accuracy", subtitle = paste0("Correlation for causal number of eQTLs k = ", k.val)) +
+            xlab(expression(Spearman~italic(rho))) +
+            xlim(xlim.lo, xlim.hi) +
+            ylim(ylim.lo, ylim.hi)
     return(corr.plot)
 }
 
@@ -136,23 +137,27 @@ if (k.value %in% K) {
         dplyr::filter(
             (Train_Pop != Test_Pop) &
             (k == k.value) &
-            (prop_shared_eqtl < 0.91) &
             (CEU_prop == 0.2) &
             (YRI_prop == 0.8)
         ) %>%
-        group_by(Train_Test, gene, prop_shared_eqtl) %>%
-        summarize(Correlation = mean(Correlation, na.rm = TRUE)) %>%
-        select(Train_Test, gene, prop_shared_eqtl, Correlation) %>%
+        #group_by(Train_Test, gene, prop_shared_eqtl) %>%
+        group_by(Train_Test, prop_shared_eqtl) %>%
+        summarize(Corr_Mean = mean(Correlation, na.rm = TRUE), Corr_StdErr = sd(Correlation, na.rm = TRUE)) %>%
         as.data.table
+        #select(Train_Test, gene, prop_shared_eqtl, Correlation) %>%
+            #(same_eqtls == FALSE)
+            #(prop_shared_eqtl < 0.91) &
 
     # make regression lines of correlation by prop_shared_eqtl
-    corr.by.propsharedeqtl.plot = ggplot(corr.by.propsharedeqtl, aes(x = prop_shared_eqtl, y = Correlation, group = Train_Test, color = Train_Test)) +
-        #geom_point(alpha = 0.05) +
-        geom_smooth(aes(linetype = Train_Test), se = TRUE, method = "lm", size = 2.5) +
+    corr.by.propsharedeqtl.plot = ggplot(corr.by.propsharedeqtl, aes(x = prop_shared_eqtl, y = Corr_Mean, group = Train_Test, color = Train_Test)) +
+        geom_point(alpha = 0.05) +
+        #geom_smooth(aes(linetype = Train_Test), se = TRUE, method = "lm", size = 2.5) +
+        geom_smooth(aes(linetype = Train_Test), se = TRUE, method = "loess", size = 1.0, level = 0.95) +
         xlab("Proportion of shared eQTLs") +
         ylab("Spearman Correlation") +
         ggtitle("Crosspopulation correlations of predicted versus simulated gene expression", subtitle = paste0("Number of causal eQTLs: ", k.value)) +
-        xlim(0, 0.9) +
+        xlim(0, 1) +
+        ylim(0, 0.4) +
         theme(
             text = element_text(size = 30),
             panel.background = element_rect(fill = "white"),
@@ -173,7 +178,8 @@ if (k.value %in% K) {
             fill     = guide_legend(keywidth = 1, keyheight = 1),
             linetype = guide_legend(keywidth = 6, keyheight = 1),
             color    = guide_legend(keywidth = 6, keyheight = 1)
-        )
+        ) +
+        geom_hline(yintercept = sqrt(0.15), size = 1.5, color = "black", linetype = "solid")
 
     # save all plots to file
     ggsave(filename = corr.facet.plot.path, plot = corr.facet.plot, dpi = 300, width = 10, height = 10, units = "in")
@@ -257,20 +263,19 @@ if (k.value == 10) {
         # pull results for current k, purge pop-to-itself, and 0.90 < prop_shared_eqtl < 1.0
         dplyr::filter(
             (k == k.value) &
-            (prop_shared_eqtl < 0.91) &
             (Train_Pop != Test_Pop) &
             (CEU_prop == 0.2) &
             (YRI_prop == 0.8)
         ) %>%
         kruskal.test(Correlation ~ as.factor(Train_Test), data = .)
     print(x.kruskal)
+            #(prop_shared_eqtl < 0.91) &
 
     # *which* groups are different from each other?
     x.dunn = x %>%
         # pull results for current k, purge pop-to-itself, and 0.90 < prop_shared_eqtl < 1.0
         dplyr::filter(
             (k == k.value) &
-            (prop_shared_eqtl < 0.91) &
             (Train_Pop != Test_Pop) &
             (CEU_prop == 0.2) &
             (YRI_prop == 0.8)
@@ -282,13 +287,13 @@ if (k.value == 10) {
     dunn.results = data.table(data.frame(x.dunn[-1]))
     dunn.results.path = file.path(output.dir, paste0("1kg.sims.corrs.dunn.k", k.value, ".txt"))
     fwrite(x = dunn.results, file = dunn.results.path, sep = "\t")
+            #(prop_shared_eqtl < 0.91) &
 
     # want to produce table of results for imputing into same pop
     # this is useful as supp table for manuscript
     samepop.results = x %>%
-        filter(
+        dplyr::filter(
             (Train_Pop == Test_Pop) &
-            (prop_shared_eqtl < 0.91) &
             (CEU_prop == 0.2) &
             (YRI_prop == 0.8)
         ) %>%
@@ -299,5 +304,5 @@ if (k.value == 10) {
         as.data.table
     samepop.results.path = file.path(output.dir, paste0("1kg.sims.corrs.by.propsharedeqtl.samepop.summary.txt"))
     fwrite(x = samepop.results, file = samepop.results.path, sep = "\t")
+            #(prop_shared_eqtl < 0.91) &
 }
-
