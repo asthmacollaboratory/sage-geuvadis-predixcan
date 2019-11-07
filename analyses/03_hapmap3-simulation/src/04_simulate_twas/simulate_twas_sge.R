@@ -47,7 +47,7 @@ option_list = list(
         type    = "logical",
         default = NULL, 
         help    = "Do populations share all eQTLs?", 
-        metavar = "numeric"
+        metavar = "logical"
     ),
     make_option(
         c("-g", "--same-eQTL-effects"),
@@ -63,13 +63,6 @@ option_list = list(
         help    = "Random seed for reproducible simulatino results. [default = %default]", 
         metavar = "integer"
     ),
-#    make_option(
-#        c("-j", "--h2-TWAS"),
-#        type    = "numeric",
-#        default = 0.3, 
-#        help    = "The heritability of the simulated TWAS phenotype. [default = %default]", 
-#        metavar = "numeric"
-#    ),
     make_option(
         c("-k", "--same-TWAS-genes"),
         type    = "logical",
@@ -132,7 +125,28 @@ option_list = list(
         default = "0.0", 
         help    = "The effect size for the causal genes .[default = %default]", 
         metavar = "numeric"
+    ),
+    make_option(
+        c("-t", "--CEU-admixture-proportion"),
+        type    = "numeric",
+        default = "0.2", 
+        help    = "The admixture proportion of AA from CEU. [default = %default]", 
+        metavar = "numeric"
+    ),
+    make_option(
+        c("-u", "--YRI-admixture-proportion"),
+        type    = "numeric",
+        default = "0.8", 
+        help    = "The admixture proportion of AA from YRI. [default = %default]", 
+        metavar = "numeric"
     )
+#    make_option(
+#        c("-j", "--h2-TWAS"),
+#        type    = "numeric",
+#        default = 0.3, 
+#        help    = "The heritability of the simulated TWAS phenotype. [default = %default]", 
+#        metavar = "numeric"
+#    ),
 )
 
 opt_parser = OptionParser(option_list = option_list)
@@ -151,7 +165,6 @@ same.eqtls        = as.logical(opt$same_eQTLs)
 same.effects      = as.logical(opt$same_eQTL_effects) 
 
 seed              = as.numeric(opt$random_seed) 
-#h2.twas           = as.numeric(opt$h2_TWAS) 
 same.twas.genes   = as.logical(opt$same_TWAS_genes)
 same.twas.effects = as.logical(opt$same_TWAS_effects)
 ngenes            = as.integer(opt$num_genes)
@@ -161,6 +174,9 @@ plot.type         = opt$plot_type
 effect.size       = as.numeric(opt$effect_size)
 twas.noise.mean   = as.numeric(opt$TWAS_noise_mean)
 twas.noise.sd     = as.numeric(opt$TWAS_noise_standard_deviation)
+CEU.admix.prop    = as.numeric(opt$CEU_admixture_proportion)
+YRI.admix.prop    = as.numeric(opt$YRI_admixture_proportion)
+#h2.twas           = as.numeric(opt$h2_TWAS) 
 
 
 
@@ -169,14 +185,14 @@ twas.noise.sd     = as.numeric(opt$TWAS_noise_standard_deviation)
 # ==========================================================================================
 
 
-twas.output.path      = file.path(output.dir, paste(output.filepfx, "txt", sep = ".")) 
-twas.plot.output.path = file.path(output.dir, paste(output.filepfx, plot.type, sep = ".")) 
+twas.output.path      = file.path(output.dir, paste0(output.filepfx, "_results.txt")) 
 
 
 # load current simulated gene expression dataset
-#load("./ELFN2_simulation_prediction_admixedpop_sameeQTLsFALSE_sameeffectsTRUE_k10_seed2018_propsharedeQTLs0.1.Rdata")
-my.pattern = paste0("*simulation_prediction_admixedpop_sameeQTLs", same.eqtls, "_sameeffects", same.effects, "_k", num.eqtls, "_seed", seed, "_propsharedeQTLs", prop.shared.eqtl, ".Rdata")
+# file name example: "ELFN2_simulation_prediction_admixedpop_sameeQTLsFALSE_sameeffectsTRUE_k10_seed2018_propsharedeQTLs0.1.Rdata"
+my.pattern = paste0("*simulation_prediction_admixedpop_sameeQTLs", same.eqtls, "_sameeffects", same.effects, "_k", num.eqtls, "_propsharedeQTLs", prop.shared.eqtl, "_CEU", CEU.admix.prop , "_YRI", YRI.admix.prop, "_seed", seed, ".Rdata")
 
+cat("Looking for files matching pattern ", my.pattern, "\n\n")
 
 rdata.files = list.files(rdata.file.dir, pattern = my.pattern, full.names = TRUE)
 ndatafiles = length(rdata.files)
@@ -184,11 +200,23 @@ assert_that(ndatafiles == ngenes, msg = paste0("Number of genes ", ngenes, " doe
 
 twas.simulation = vector(mode = "list", length = ndatafiles)
 
+
 for (my.file in rdata.files) {
 
     # load results for this configuration
     cat("Reading file ", my.file, "\n")
     load(my.file)
+
+    # aliases 
+    gene = results.this.k$gene
+
+    genos.1 = results.this.k$genotypes$pop1
+    genos.2 = results.this.k$genotypes$pop2
+    genos.admix = results.this.k$genotypes$admixpop
+
+    beta.pred.1 = results.this.k$predictive.models$pop1
+    beta.pred.2 = results.this.k$predictive.models$pop2
+    beta.pred.admix = results.this.k$predictive.models$admixpop
 
     # add original simulated expression values 
     twas.simulation$original.expression.1[[gene]]      = results.this.k$phenotypes$pop1 
@@ -211,6 +239,8 @@ for (my.file in rdata.files) {
 
 }
 
+cat("Rdata files read, now simulating TWAS...\n\n")
+
 # compile lists of expression vectors into matrices
 original.expression.1      = as.data.frame(twas.simulation$original.expression.1)
 original.expression.2      = as.data.frame(twas.simulation$original.expression.2)
@@ -228,6 +258,9 @@ predicted.expression.admix.to.1 = as.data.frame(twas.simulation$predicted.expres
 predicted.expression.admix.to.2 = as.data.frame(twas.simulation$predicted.expression.admix.to.2)
 predicted.expression.admix.to.admix = as.data.frame(twas.simulation$predicted.expression.admix.to.admix)
 
+# fix random seed
+set.seed(seed)
+
 # set up simulated TWAS models 
 twas.model.1   = sample.int(ngenes, size = ncausal.genes, replace = FALSE)
 beta.twas.1    = matrix(0, ngenes, 1)
@@ -238,15 +271,11 @@ beta.twas.1[twas.model.1] = twas.effects.1
 beta.twas.2     = matrix(0, ngenes, 1)
 beta.twas.admix = matrix(0, ngenes, 1)
 
-## should pop2 and admixed pop use same eQTL effect sizes?
-## if not, then simulate new ones
-#if ( same.twas.effects ) {
-#    twas.effects.2     = twas.effects.1
-#    twas.effects.admix = twas.effects.1
-#} else { 
-    twas.effects.2     = effect.size 
-    twas.effects.admix = effect.size 
-#}
+# should pop2 and admixed pop use same eQTL effect sizes?
+# if not, then should simulate new ones
+# this is definitely a future interest, but for now must assume that eQTL effects are same across pops
+twas.effects.2     = effect.size 
+twas.effects.admix = effect.size 
 
 # populations should share causal genes
 twas.model.2     = twas.model.1
@@ -330,7 +359,7 @@ perform.twas.regressions = function(phenotype, expression, from.pop, to.pop, ori
             "same.causal.genes"   = same.twas.genes,
             "same.causal.effects" = same.twas.effects,
             "prop.shared.eqtl"    = prop.shared.eqtl,
-            "num.causal.eqtl"     = k,
+            "num.causal.eqtl"     = results.this.k$k,
             "same.causal.eqtl"    = same.eqtls,
             "same.eqtl.effects"   = same.effects,
             "original.model"      = original.model,
@@ -338,11 +367,13 @@ perform.twas.regressions = function(phenotype, expression, from.pop, to.pop, ori
             "pheno.var"           = stddev^2,
             "h2.genetic"          = h2.g,
             "h2.environmental"    = h2.e,
-            "h2.overall"          = h2.g / (h2.g + h2.e)
+            "h2.overall"          = h2.g / (h2.g + h2.e),
+            "ceu.prop"            = CEU.admix.prop,
+            "yri.prop"            = YRI.admix.prop
         ) %>%
         select(genes, twas.effect, stderr, t.value, p.value, from.pop, to.pop, seed, ncausal.genes, same.causal.genes,
             same.causal.effects, prop.shared.eqtl, num.causal.eqtl, same.causal.eqtl, same.eqtl.effects, original.model,
-            power.to.detect, pheno.var, h2.genetic, h2.environmental, h2.overall
+            power.to.detect, pheno.var, h2.genetic, h2.environmental, h2.overall, ceu.prop, yri.prop
         ) %>%
         rename("Gene_Name" = genes, "TWAS_Effect" = twas.effect, "StdErr" = stderr, "T_value" = t.value, "P_value" = p.value,
             "Train_Pop" = from.pop, "Test_Pop" = to.pop, "Seed" = seed, "Num_Causal_Genes" = ncausal.genes,
@@ -350,7 +381,7 @@ perform.twas.regressions = function(phenotype, expression, from.pop, to.pop, ori
             "Prop_Shared_eQTL" = prop.shared.eqtl, "Num_Causal_eQTL" = num.causal.eqtl, "Same_Causal_eQTL" = same.causal.eqtl,
             "Same_eQTL_Effects" = same.eqtl.effects, "Original_Model" = original.model, "Power" = power.to.detect,
             "Phenotype_Variance" = pheno.var, "Genetic_Variance" = h2.genetic, "Environmental_Variance" = h2.environmental,
-            "Heritability" = h2.overall
+            "Heritability" = h2.overall, "CEU_proportion" = ceu.prop, "YRI_proportion" = yri.prop
         )
     return(data.table(my.output))
 } 
@@ -359,6 +390,8 @@ perform.twas.regressions = function(phenotype, expression, from.pop, to.pop, ori
 twas.noise.var = twas.noise.sd^2
 
 # simulate TWAS regressions!
+
+cat("Running TWAS...\n\n")
 twas.1.to.1     = perform.twas.regressions(twas.y.1, predicted.expression.1.to.1, "CEU", "CEU", beta.twas.1, twas.y.sd.1, twas.pheno.var.1, twas.noise.var) 
 twas.2.to.1     = perform.twas.regressions(twas.y.1, predicted.expression.2.to.1, "YRI", "CEU", beta.twas.1, twas.y.sd.1, twas.pheno.var.1, twas.noise.var) 
 twas.admix.to.1 = perform.twas.regressions(twas.y.1, predicted.expression.admix.to.1, "AA", "CEU", beta.twas.1, twas.y.sd.1, twas.pheno.var.1, twas.noise.var) 
@@ -379,5 +412,7 @@ twas.results = rbindlist(list(twas.1.to.1, twas.2.to.1, twas.admix.to.1, twas.1.
 twas.results = twas.results %>% dplyr::filter(Original_Model != 0)
 fwrite(x = twas.results, file = twas.output.path, sep = "\t", quote = FALSE, na = "NA")
 
+cat("complete!\n\n")
+
 # save output
-save.image(file.path(output.dir, paste(output.filepfx, "Rdata", sep = ".")))
+#save.image(file.path(output.dir, paste(output.filepfx, "Rdata", sep = ".")))

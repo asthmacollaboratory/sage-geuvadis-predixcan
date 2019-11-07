@@ -17,7 +17,7 @@ Many model scenarios are tested. The relevant parameters are
 2. Write each testing scenario as a job to be read from a master file. 
 3. Schedule and execute jobs in parallel. 
 
-Step (2) uses elastic net regression from the `glmnet` package to estimate predictive models in a nested cross-validation scheme.
+Step (3) uses elastic net regression from the `glmnet` package to estimate predictive models in a nested cross-validation scheme.
 The function `cv.glmnet` runs the internal cross-validation loop, while the external folds are partitioned manually.
 Four variables control the cross-validation behavior:
 
@@ -31,19 +31,13 @@ Four variables control the cross-validation behavior:
 It is _strongly recommended_ to keep `nfolds_parallel=1` since the internal folds are computationally light.
 Instead, maximize throughput by parallelizing across jobs (testing scenarios) with `nthreads`.
 
-Step (3) relies heavily on [`nohup`](https://en.wikipedia.org/wiki/Nohup) and schedules jobs to run in the background. 
-In principle, this analysis can use all available virtual CPU cores, but in practice `libgomp` may limit the number of jobs that can run in parallel.
-The manuscript used `nthreads=24`.
-Your mileage may vary.
-
-Note that step (3) is easily amenable to running with `qsub` on an SGE cluster if the user has access to one.
-The commands written to `simulation_joblist.sh` can be prefaced with `qsub` and its requisite options when writing `simulation_joblist.sh`.
-Afterwards, call `simulation_joblist.sh` directly to place all jobs in a queue.
+Step (3) is structured for an SGE compute cluster environment. 
+The commands written to `simulation_joblist.sh` are called as array jobs, and each line of the command file `simulation_joblist.sh` requests a core.
 
 ## Running
 From a Bourne shell, call the script directly:
 ```bash
-./test_prediction_models.sh
+./test_prediction_models_sge.sh
 ```
 
 
