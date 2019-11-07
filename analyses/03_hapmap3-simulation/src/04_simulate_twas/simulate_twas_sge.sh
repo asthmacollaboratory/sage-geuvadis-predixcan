@@ -52,7 +52,7 @@ R_plot_twas_results="${thisdir}/plot_twas_results_sge.R"
 
 # master file for compiling results 
 results_file="${outputdir}/twas.sim.all.results.$(date "+%Y-%m-%d").txt"
-#results_file="${outputdir}/twas.sim.all.results.2019-08-19.txt"
+results_file="${outputdir}/twas.sim.all.results.2019-10-08.txt"
 
 # make simulation job list file
 # this will house all parallel jobs to execute
@@ -71,7 +71,8 @@ simulation_errfile_list="${outputdir}/simulation_errfile_list_twas.sh"
 
 # variables from simulation of gene expression
 K=(10) ## to test all eQTL models, use K=(01 10 20 40)
-proportions_eqtls=("0.0" "0.5" "0.9")
+#proportions_eqtls=("0.0" "0.5" "0.9")
+proportions_eqtls=("0.0" "0.5" "1.0")
 same_eqtls="FALSE"
 same_effects="TRUE"
 plot_filetype="png"
@@ -176,8 +177,6 @@ same_effects="TRUE"
 prop_shared_eqtl="0.5"
 k=10
 ncausal_genes=1
-#CEU_props=("0" "0.1" "0.2" "0.3" "0.4" "0.5" "0.6" "0.7" "0.8" "0.9" "1") ## <-- note that 0 is NOT 0.0, 1 is NOT 1.0 !!!
-#YRI_props=("1" "0.9" "0.8" "0.7" "0.6" "0.5" "0.4" "0.3" "0.2" "0.1" "0") ## blame R for printing double as integer in analysis step 1
 CEU_props=("0" "0.1" "0.3" "0.4" "0.5" "0.6" "0.7" "0.8" "0.9" "1") ## <-- note that 0 is NOT 0.0, 1 is NOT 1.0 !!!
 YRI_props=("1" "0.9" "0.7" "0.6" "0.5" "0.4" "0.3" "0.2" "0.1" "0") ## blame R for printing double as integer in analysis step 1
 ### note: CEU_prop == 0.2 and YRI_prop == 0.8 was written to job scheduling list already 
@@ -255,7 +254,6 @@ for i in $(seq 1 ${num_array_jobs}); do ##<-- COMMENT for debugging
          -o "${logdir}" \
          -l mem_free="${memory_limit}",h_rt="${h_rt}",arch="${processor_architecture}" \
          ${BASH_qsub_template}
-         #-l mem_free="${memory_limit}",scratch="${scratch_memory}",h_rt="${h_rt}",arch="${processor_architecture}" \
 
     first_task=$(echo $(( i*my_max_tasks + 1)) )
     last_task=$(echo $(( (i + 1)*my_max_tasks)) )
@@ -283,7 +281,6 @@ qsub -N "sim.1kg.compile.twas.results" \
      -o "${logdir}" \
      -l mem_free="${memory_limit}",h_rt="${h_rt}",arch="${processor_architecture}" \
      ${BASH_qsub_compile_results}
-     #-l mem_free="${memory_limit}",scratch="${scratch_memory}",h_rt="${h_rt}",arch="${processor_architecture}" \
 
 # update simulation jobs
 for i in $(seq 1 ${num_array_jobs}); do
@@ -294,12 +291,9 @@ done
 h_rt="00:29:59"
 scratch_memory="1G"
 memory_limit="5G"
-#logdir="${output_text_dir}/logfiles"
-#mkdir -p ${logdir}
+k=10
 
 ## plot TWAS results
-#sim_jobs="a"
-k=10
 qsub -N "sim.1kg.plot.twas.results" \
      -hold_jid "${sim_jobs}" \
      -v "RSCRIPT=${RSCRIPT},R_plot_results=${R_plot_twas_results},results_file=${results_file},plotdir=${plotdir},plot_filetype=${plot_filetype},k=${k}" \
@@ -307,4 +301,3 @@ qsub -N "sim.1kg.plot.twas.results" \
      -o "${logdir}" \
      -l mem_free="${memory_limit}",h_rt="${h_rt}",arch="${processor_architecture}" \
      ${BASH_qsub_plot_results}
-     #-l mem_free="${memory_limit}",scratch="${scratch_memory}",h_rt="${h_rt}",arch="${processor_architecture}" \

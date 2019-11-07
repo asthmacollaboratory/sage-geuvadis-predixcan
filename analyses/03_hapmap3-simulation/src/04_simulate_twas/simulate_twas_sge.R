@@ -47,7 +47,7 @@ option_list = list(
         type    = "logical",
         default = NULL, 
         help    = "Do populations share all eQTLs?", 
-        metavar = "numeric"
+        metavar = "logical"
     ),
     make_option(
         c("-g", "--same-eQTL-effects"),
@@ -186,11 +186,10 @@ YRI.admix.prop    = as.numeric(opt$YRI_admixture_proportion)
 
 
 twas.output.path      = file.path(output.dir, paste0(output.filepfx, "_results.txt")) 
-#twas.plot.output.path = file.path(output.dir, paste(output.filepfx, plot.type, sep = ".")) 
 
 
 # load current simulated gene expression dataset
-#load("./ELFN2_simulation_prediction_admixedpop_sameeQTLsFALSE_sameeffectsTRUE_k10_seed2018_propsharedeQTLs0.1.Rdata")
+# file name example: "ELFN2_simulation_prediction_admixedpop_sameeQTLsFALSE_sameeffectsTRUE_k10_seed2018_propsharedeQTLs0.1.Rdata"
 my.pattern = paste0("*simulation_prediction_admixedpop_sameeQTLs", same.eqtls, "_sameeffects", same.effects, "_k", num.eqtls, "_propsharedeQTLs", prop.shared.eqtl, "_CEU", CEU.admix.prop , "_YRI", YRI.admix.prop, "_seed", seed, ".Rdata")
 
 cat("Looking for files matching pattern ", my.pattern, "\n\n")
@@ -208,7 +207,7 @@ for (my.file in rdata.files) {
     cat("Reading file ", my.file, "\n")
     load(my.file)
 
-# aliases 
+    # aliases 
     gene = results.this.k$gene
 
     genos.1 = results.this.k$genotypes$pop1
@@ -272,15 +271,11 @@ beta.twas.1[twas.model.1] = twas.effects.1
 beta.twas.2     = matrix(0, ngenes, 1)
 beta.twas.admix = matrix(0, ngenes, 1)
 
-## should pop2 and admixed pop use same eQTL effect sizes?
-## if not, then simulate new ones
-#if ( same.twas.effects ) {
-#    twas.effects.2     = twas.effects.1
-#    twas.effects.admix = twas.effects.1
-#} else { 
+# should pop2 and admixed pop use same eQTL effect sizes?
+# if not, then should simulate new ones
+# this is definitely a future interest, but for now must assume that eQTL effects are same across pops
 twas.effects.2     = effect.size 
 twas.effects.admix = effect.size 
-#}
 
 # populations should share causal genes
 twas.model.2     = twas.model.1

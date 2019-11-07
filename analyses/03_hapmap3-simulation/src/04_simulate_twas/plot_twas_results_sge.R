@@ -61,6 +61,13 @@ option_list = list(
         default = 10, 
         help    = "Number of eQTL used to predict gene expression levels for TWAS association tests [default = %default].",
         metavar = "integer"
+    ), ## note: this argument merely allows us to shoehorn this script through a unified QSUB submission interface
+    make_option(
+        c("-j", "--effect-size-to-plot"),
+        type    = "numeric",
+        default = 1e-2, 
+        help    = "Effect size to use when making cross-sections of heritability[default = %default].",
+        metavar = "numeric"
     ) ## note: this argument merely allows us to shoehorn this script through a unified QSUB submission interface
 )
 opt_parser = OptionParser(option_list = option_list)
@@ -73,6 +80,7 @@ results.file = opt$results_file
 output.dir   = opt$output_directory
 plot.type    = opt$plot_filetype
 seed         = opt$random_seed
+effect.size  = opt$effect_size_to_plot
 
 # should ideally confirm that these are true in results
 nmodels      = opt$num_models
@@ -84,6 +92,20 @@ my.jitter = position_jitter(width = 0.1, height = 0.0001, seed = seed)
 
 # read results files
 x = fread(results.file)
+
+# compute average genetic heritability for desired effect size to show
+h2.effect.size = x %>%
+    mutate(Train_Test = paste(Train_Pop, Test_Pop, sep = " to ")) %>% 
+    group_by(Train_Test, Prop_Shared_eQTL, Original_Model) %>%
+    summarize(h = mean(Heritability, na.rm = TRUE)) %>%
+    dplyr::filter(Original_Model == effect.size) %>%
+    ungroup %>%
+    dplyr::select(h) %>%
+    summarize(h2 = mean(h)) %>%
+    as.numeric %>%
+    round(., 3)
+
+admix.effect.sizes = c(0.005, 0.01, 0.025)
 
 # fix various plotting parameters here
 # writing these once and reusing makes for tidier code
@@ -213,9 +235,8 @@ theme_klk = function(){
 cat("plotting g1\n\n")
 g1 = x %>%
     dplyr::filter(
-        Original_Model == 0.1 &
+        Original_Model == effect.size &
         YRI_proportion == 0.8
-        #is.na(YRI_proportion)
     ) %>% 
     mutate(Train_Test = paste(Train_Pop, Test_Pop, sep = " to ")) %>% 
     mutate(
@@ -228,7 +249,7 @@ g1 = x %>%
         ) + 
         ggtitle(
             bquote("Distributions of "~t~"-statistics from TWAS association tests in AA, CEU, and YRI"),
-            subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTL per gene and heritability "~h^2~" = 0.95")
+            subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTL per gene and heritability "~h^2~" = "~.(h2.effect.size))
         ) + 
         ylab(bquote(t~"-statistic")) +
         xlab("Train - Test scenario") +
@@ -323,7 +344,6 @@ g3 = x %>%
     ggplot(., aes(x = log10(Original_Model), y = Post_Hoc_Power, color = Train_Test)) +
         geom_point(aes(shape = Train_Test), alpha = 0.2, position = my.jitter) +
         geom_smooth(aes(linetype = Train_Test), method = "glm", method.args = list(family = "binomial"), se = TRUE, alpha = 0.1, span = 0.5) +
-        geom_vline(xintercept = log10(0.1), color = "red", linetype = "dotdash") +
         scale_shape_manual(
             name   = "Train to Test",
             values = my.shapes,
@@ -382,7 +402,6 @@ g4 = x %>%
     dplyr::filter(
         Original_Model != 0 &
         YRI_proportion == 0.8
-        #is.na(YRI_proportion)
     ) %>%
     select(Train_Pop, Test_Pop, Seed, Original_Model, Prop_Shared_eQTL, Power, P_value, Heritability) %>%
     group_by(Train_Pop, Test_Pop, Seed, Original_Model, Prop_Shared_eQTL) %>%
@@ -395,7 +414,6 @@ g4 = x %>%
     ) %>%
     ggplot(., aes(x = h2, y = Post_Hoc_Power, color = Train_Test)) +
         geom_smooth(aes(linetype = Train_Test), method = "glm", method.args = list(family = "binomial"), se = TRUE, alpha = 0.1, span = 0.5) +
-        geom_vline(xintercept = 0.95, color = "red", linetype = "dotdash") +
         scale_shape_manual(
             name   = "Train to Test",
             values = my.shapes,
@@ -428,7 +446,8 @@ g4 = x %>%
             color    = guide_legend(keywidth = 6, keyheight = 1)
         ) +
         ylab("Power") +
-        xlab(bquote("Heritability ("~h^2~")")) +
+        xlab(bquote("Proportion of variance explained")) +
+        #xlab(bquote("Heritability ("~h^2~")")) +
         ggtitle(
             bquote("Power of TWAS association tests with cross-population predicted expression"),
             subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTL per gene") 
@@ -441,9 +460,8 @@ ggsave(g4, file = g4.path, units = "in", width = 18, height = 6)
 # will use this for future plots
 x.power = x %>%
     dplyr::filter(
-        Original_Model == 0.1 &
+        Original_Model == effect.size &
         YRI_proportion == 0.8
-        #is.na(YRI_proportion)
     ) %>%
     select(Train_Pop, Test_Pop, Seed, Original_Model, Prop_Shared_eQTL, Same_Causal_eQTL, P_value, Heritability) %>%
     group_by(Train_Pop, Test_Pop, Seed, Original_Model, Prop_Shared_eQTL, Same_Causal_eQTL) %>%
@@ -452,7 +470,7 @@ x.power = x %>%
         h2 = mean(Heritability, na.rm = TRUE)
     ) %>%
     dplyr::mutate(
-        Train_Test = factor(paste(Train_Pop, Test_Pop, sep = " to "),levels = my.breaks.allpop.reverse)
+        Train_Test = factor(paste(Train_Pop, Test_Pop, sep = " to "), levels = my.breaks.allpop.reverse)
     ) %>%
     ungroup %>%
     select(Train_Test, Prop_Shared_eQTL, Post_Hoc_Power, h2) %>%
@@ -506,13 +524,19 @@ g6 = x.power %>%
     ) %>%
     ggplot(., aes(x = Train_Test, y = Power, group = Prop_Shared_eQTL, fill = Prop_Shared_eQTL))  +
         geom_bar(stat = "identity", position = position_dodge(), size = 2) +
-        scale_color_manual(name = "Shared eQTL", values = c(`0% shared eQTL` = "lightblue", `50% shared eQTL` = "steelblue", `90% shared eQTL` = "darkblue"), aesthetics = c("fill")) +
+        geom_errorbar(
+            aes(ymin = Power - 1.96*Power_SE, ymax = Power + 1.96*Power_SE),
+            position = position_dodge(0.9),
+            size = 0.3,
+            width = 0.2 
+        ) + 
+        scale_color_manual(name = "Shared eQTL", values = c(`0% shared eQTL` = "lightblue", `50% shared eQTL` = "steelblue", `100% shared eQTL` = "darkblue"), aesthetics = c("fill")) +
         theme_klk() + 
         ylab("Power") +
         xlab("Train-test scenario") +
         ggtitle(
             bquote("Power of TWAS association tests in AA, CEU, and YRI"),
-            subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTL per gene and "~h^2~" = 0.95")
+            subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTL per gene and "~h^2~" = "~.(h2.effect.size))
         )
 
 g6.path = file.path(output.dir, paste("twas.sim.results.power.barcharts", plot.type, sep = "."))
@@ -523,14 +547,15 @@ cat("plotting g7\n\n")
 g7 = x.power %>%
     ungroup %>%
     mutate(
-        Train_Test = factor(Train_Test, levels = c("CEU to YRI", "YRI to CEU", "CEU to AA", "AA to CEU", "AA to YRI", "YRI to AA", "AA to AA", "CEU to CEU", "YRI to YRI")),
+        Train_Test = factor(Train_Test, levels = c("CEU to YRI", "YRI to CEU", "AA to CEU", "AA to YRI", "CEU to AA", "YRI to AA", "AA to AA", "CEU to CEU", "YRI to YRI")),
         Prop_Shared_eQTL = recode(Prop_Shared_eQTL, `0` = "0% shared eQTL", `0.5` = "50% shared eQTL", `0.9` = "90% shared eQTL", `1` = "All shared eQTL")
+        #Train_Test = factor(Train_Test, levels = c("CEU to YRI", "YRI to CEU", "CEU to AA", "AA to CEU", "AA to YRI", "YRI to AA", "AA to AA", "CEU to CEU", "YRI to YRI")),
     ) %>%
     ggplot(., aes(x = Train_Test, y = Power, group = Prop_Shared_eQTL, fill = Prop_Shared_eQTL))  +
         geom_bar(stat = "identity", position = position_dodge(), size = 2) +
         scale_color_manual(
             name = "Shared eQTL",
-            values = c(`0% shared eQTL` = "lightblue", `50% shared eQTL` = "steelblue", `90% shared eQTL` = "darkblue", `All shared eQTL` = "black"),
+            values = c(`0% shared eQTL` = "lightblue", `50% shared eQTL` = "steelblue", `All shared eQTL` = "darkblue"),
             aesthetics = c("fill")
         ) +
         theme_klk() + 
@@ -543,7 +568,7 @@ g7 = x.power %>%
         xlab("Train-test scenario") +
         ggtitle(
             bquote("Power of TWAS association tests in AA, CEU, and YRI"),
-            subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTL per gene and heritability "~h^2~" = 0.95")
+            subtitle = bquote("Expression imputed from AA, CEU, and YRI for "~k~" = 10 eQTL per gene and heritability "~h^2~" = "~.(h2.effect.size))
         )
 
 g7.path = file.path(output.dir, paste("twas.sim.results.power.barcharts.allpops", plot.type, sep = "."))
@@ -552,7 +577,7 @@ ggsave(g7, file = g7.path, units = "in", width = 18, height = 6)
 # produce power plots for varying admixture levels
 x.power.admix = x %>%
     dplyr::filter(
-        Original_Model %in% c(0.01, 0.025, 0.05) &
+        Original_Model %in% admix.effect.sizes &
         Prop_Shared_eQTL == 0.5 &
         Train_Pop != Test_Pop
     ) %>%
@@ -599,10 +624,9 @@ ggsave(g8, file = g8.path, units = "in", width = 18, height = 6)
 # this plot has added benefit of deemphasizing CEU <--> YRI relationships, which don't vary with admixture proportion 
 x.power2 = x %>%
     dplyr::filter(
-        Original_Model %in% c(0.01, 0.025, 0.05) &
+        Original_Model %in% admix.effect.sizes &
         Prop_Shared_eQTL == 0.5 &
         Train_Pop != Test_Pop
-        #!is.na(YRI_proportion) &
     ) %>%
     select(Train_Pop, Test_Pop, Seed, Original_Model, YRI_proportion, Heritability, P_value) %>%
     mutate(
