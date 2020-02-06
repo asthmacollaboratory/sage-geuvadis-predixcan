@@ -14,17 +14,18 @@ set -u  ## script will exit if it sees an uninitialized variable
 # ==========================================================================================
 # binaries, directories, filepaths
 # ==========================================================================================
-RSCRIPT=$(whereis Rscript | awk '{print $2}') ## will default to system Rscript, if installed
+#RSCRIPT=$(whereis Rscript | awk '{print $2}') ## will default to system Rscript, if installed
+RSCRIPT="/usr/bin/Rscript"
 
 thisdir="$(dirname $(readlink -f $0))"
 analysisdir="${thisdir}/../../analysis"
 outputdir="${analysisdir}/prediction_output"
 output_text_dir="${outputdir}/prediction_output_text"
 output_data_dir="${outputdir}/prediction_output_data"
+logdir="${output_text_dir}/logfiles"
 plotdir="${analysisdir}/plots"
 resultsdir="${analysisdir}/results"
-#scratchdir="/scratch/klkeys/1kg_compile_results" ##<-- doesn't seem to work...
-scratchdir="${HOME}/tmp"
+scratchdir="/wynton/scratch/klkeys"
 
 Rdata_files="${outputdir}/Rdata_filelist.txt"
 simulation_joblist="${outputdir}/simulation_joblist.sh"
@@ -43,10 +44,10 @@ BASH_qsub_plot_results="${thisdir}/qsub_plot_results.sh"
 # ==========================================================================================
 # script variables
 # ==========================================================================================
-#results_file="${resultsdir}/1kg.all.results.txt"
-results_file="${resultsdir}/1kg.all.results.admixvary.txt"
+#results_file="${resultsdir}/1kg.all.results.admixvary.$(date "+%Y-%m-%d").txt"
+results_file="${resultsdir}/1kg.all.results.admixvary.2019-10-01.txt"
 plot_filetype="png"
-K=(1 5 10 20)
+K=(1 10 20 40)
 
 # ==========================================================================================
 # executable code
@@ -56,19 +57,28 @@ K=(1 5 10 20)
 mkdir -p ${plotdir}
 mkdir -p ${resultsdir}
 mkdir -p ${scratchdir}
+mkdir -p ${logdir}
 
 # set SGE variables
-h_rt="00:10:00"
-scratch_memory="1G"
-memory_limit="1G"
-logdir="${output_text_dir}"
+h_rt="23:59:59"
+scratch_memory="10G"
+memory_limit="10G"
+
+# specify the grid processor architecture to use
+processor_architecture="lx-amd64"
+
 
 njobs=$(wc -l ${simulation_joblist} | awk '{ print $1 }') ## <-- maintains QSUB chain, but may overschedule jobs (forgiveable since extra jobs just die)
-#njobs=$(wc -l ${Rdata_files}) ## <-- "correct" way to schedule, but this breaks QSUB chain, must wait for previous job to finish for this to work!!
+
+### COMMENT BELOW ###
+#njobs=$(wc -l ${Rdata_files} | awk '{ print $1 }') ## <-- "correct" way to schedule, but this breaks QSUB chain, must wait for previous job to finish for this to work!!
+### COMMENT ABOVE ###
+
 
 # query SGE system limits, particularly the maximum permissible number of array job tasks
-max_aj_tasks=$(qconf -sconf | grep "max_aj_tasks" | awk '{ print $NF}') ## on UCSF QB3, this is 100k
-my_max_tasks=$(echo $((max_aj_tasks / 2))) ## slightly favor fewer array jobs with more tasks vs. more array jobs with fewer tasks
+max_aj_tasks=$(qconf -sconf | grep "max_aj_tasks" | awk '{ print $NF}') ## on UCSF QB3/Wynton, this is 100k
+#my_max_tasks=$(echo $((max_aj_tasks / 2))) ## slightly favor fewer array jobs with more tasks vs. more array jobs with fewer tasks
+my_max_tasks=$(echo $((max_aj_tasks / 10))) ## favor fewer array jobs with more tasks vs. more array jobs with fewer tasks
 
 # how many array jobs do we need to schedule?
 # the +1 is necessary since BASH int division *truncates*
@@ -80,7 +90,7 @@ num_array_jobs=$(echo $((njobs / my_max_tasks + 1)))
 first_task=1
 last_task=${my_max_tasks}
 last_task=$(echo $(( ${last_task} > ${njobs} ? ${njobs} : ${last_task})) )
-#last_task=2 ##<-- uncomment for debugging
+#last_task=20 ##<-- uncomment for debugging
 
 # must list all previous array jobs
 # this allows us to schedule everything in correct order
@@ -91,31 +101,35 @@ done
 
 # how many data files do we have?
 # will assign 1 core per data file
-# must sort in order to schedule jobs in relative order
-#find ${output_data_dir} -type f -name "*.Rdata" | sort > ${Rdata_files}
 qsub -N "sim.1kg.list.Rdata.files" \
      -hold_jid "${sim_jobs}" \
-     -v "output_data_dir=${output_data_dir},Rdata_files=${Rdata_files}" \
+     -v "output_data_dir=${output_data_dir},Rdata_files=${Rdata_files},scratchdir=${scratchdir}" \
      -e "${logdir}" \
      -o "${logdir}" \
-     -l mem_free="${memory_limit}",scratch="${scratch_memory}",h_rt="${h_rt}" \
+     -l mem_free="${memory_limit}",h_rt="${h_rt}",arch="${processor_architecture}" \
      ${BASH_qsub_list_files}
 
 
 # each iteration of this loop schedules 1 array job
-for i in $(seq 1 ${num_array_jobs}); do
+for i in $(seq 1 ${num_array_jobs}); do ##<-- COMMENT for debugging
 #i=1 ##<-- uncomment for debugging, remember to comment $first_task and $last_task updates too
+
+    array_job_name="sim.1kg.parse.results.${i}"
+    array_job_logdir="${logdir}/${array_job_name}"
+    array_job_scratchdir="${scratchdir}/${array_job_name}"
+    mkdir -p ${array_job_logdir}
+    mkdir -p ${array_job_scratchdir}
 
     # compile results with SGE framework
     # split into multiple array jobs as workaround to task limit
     # this parses 1 data file per task, so each task is very light
-    qsub -N "sim.1kg.parse.results.${i}" \
+    qsub -N "${array_job_name}" \
          -hold_jid "sim.1kg.list.Rdata.files,sim.1kg.expression.${i}" \
-         -v "RSCRIPT=${RSCRIPT},R_compile_results=${R_compile_results},scratchdir=${scratchdir},Rdata_files=${Rdata_files}" \
+         -v "RSCRIPT=${RSCRIPT},R_compile_results=${R_compile_results},scratchdir=${array_job_scratchdir},Rdata_files=${Rdata_files}" \
          -t ${first_task}-${last_task} \
-         -e "${logdir}" \
-         -o "${logdir}" \
-         -l mem_free="${memory_limit}",scratch="${scratch_memory}",h_rt="${h_rt}" \
+         -e "${array_job_logdir}" \
+         -o "${array_job_logdir}" \
+         -l mem_free="${memory_limit}",h_rt="${h_rt}",arch="${processor_architecture}" \
          ${BASH_qsub_parse_results}
 
     first_task=$(echo $(( i*my_max_tasks + 1)) )
@@ -124,7 +138,7 @@ for i in $(seq 1 ${num_array_jobs}); do
     # readjust to keep from overscheduling jobs, using ${njobs} as scheduling cap
     first_task=$(echo $(( ${first_task} > ${njobs} ? ${njobs} : ${first_task} )) )
     last_task=$(echo $(( ${last_task} > ${njobs} ? ${njobs} : ${last_task} )) )
-done
+done ##<-- COMMENT for debugging
 
 # update jobs on which to hold
 for i in $(seq 1 ${num_array_jobs}); do
@@ -132,16 +146,16 @@ for i in $(seq 1 ${num_array_jobs}); do
 done
 
 # reset SGE variables
-h_rt="00:10:00"
+h_rt="23:59:59"
 scratch_memory="1G"
-memory_limit="5G"
+memory_limit="10G"
 # compile all parsed results and tidy up directories
 qsub -N "sim.1kg.compile.results" \
      -hold_jid "${sim_jobs}" \
      -v "results_file=${results_file},scratchdir=${scratchdir}" \
      -e "${logdir}" \
      -o "${logdir}" \
-     -l mem_free="${memory_limit}",scratch="${scratch_memory}",h_rt="${h_rt}" \
+     -l mem_free="${memory_limit}",h_rt="${h_rt}",arch="${processor_architecture}" \
      ${BASH_qsub_compile_results}
 
 
@@ -149,7 +163,7 @@ qsub -N "sim.1kg.compile.results" \
 h_rt="00:10:00"
 scratch_memory="1G"
 memory_limit="5G"
-logdir="${output_text_dir}"
+sim_jobs="a"
 sim_jobs="${sim_jobs},sim.1kg.compile.results"
 
 # plot results within SGE framework
@@ -160,6 +174,6 @@ for k in ${K[@]}; do
          -v "RSCRIPT=${RSCRIPT},R_plot_results=${R_plot_results},plotdir=${plotdir},plot_filetype=${plot_filetype},results_file=${results_file},k=${k}" \
          -e "${logdir}" \
          -o "${logdir}" \
-         -l mem_free="${memory_limit}",scratch="${scratch_memory}",h_rt="${h_rt}" \
+         -l mem_free="${memory_limit}",h_rt="${h_rt}",arch="${processor_architecture}" \
          ${BASH_qsub_plot_results}
 done

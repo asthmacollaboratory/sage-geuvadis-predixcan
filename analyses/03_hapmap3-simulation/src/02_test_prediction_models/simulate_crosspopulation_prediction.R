@@ -1,4 +1,4 @@
-###!/usr/bin/env Rscript --vanilla
+#!/usr/bin/env Rscript --vanilla
 # ==========================================================================================
 # coded by Kevin L. Keys (2018)
 #
@@ -14,17 +14,17 @@
 # ==========================================================================================
 
 # don't emit warnings, only errors
-options(warn = -1)
+#options("warn" = -1)
 
 # ==========================================================================================
 # libraries
 # ==========================================================================================
-suppressMessages(library(glmnet))
-suppressMessages(library(methods))
-suppressMessages(library(assertthat))
-suppressMessages(library(data.table))
-suppressMessages(library(doParallel))
-suppressMessages(library(optparse))
+suppressMessages(library("methods"))
+suppressMessages(library("glmnet"))
+suppressMessages(library("assertthat"))
+suppressMessages(library("data.table"))
+suppressMessages(library("doParallel"))
+suppressMessages(library("optparse"))
 
 
 # parse command line variables
@@ -463,7 +463,7 @@ if ( same.eQTL.betas ) {
     eqtl.effects.admix = rnorm(k, eqtl.mean, eqtl.sd)
 }
 
-# should pop2 and admixed pop use same eQTLs as pop 1?
+# should pop2 and admixed pop use same eQTL positions as pop 1?
 # if not, then simulate new ones
 if ( same.eQTLs ) {
     snp.model.2     = snp.model.1
@@ -475,25 +475,38 @@ if ( same.eQTLs ) {
     # for eqtls NOT in common, pop2 gets some random sample from elements of 1:M not in snp.model.1
     # this draws eqtls unique to pop2 from whatever eQTL positions are NOT in pop1
     # for admix pop, preserve eqtls in common b/w pop1 and pop2
-    # then sample remaining eqtls from pop1, pop2 in ancestral fraction (20% of pop1, 80% of pop2)
-    # note: the *ancestral* proportions of eqtls from each ancestral pop are fixed, but the % shared eqtls varies
-    # if pop1, pop2 share no eqtls, then admix pop will still have eqtls in common with each ancestral pop
-    eqtls.in.common = sample(snp.model.1, size = floor(frac.same.eQTLs * k), replace = FALSE)
+    # then draw remaining eqtls from positions NOT in pop1, pop2
+
+    eqtls.in.common = head(snp.model.1, floor(frac.same.eQTLs * k))
+    if ( length(eqtls.in.common) == 0 ) {
+        # ensure that empty set is typed correctly as an integer
+        eqtls.in.common = integer()
+    }
+    if ( identical(eqtls.in.common, 0) ) {
+        # replace "0" index w/ empty integer for safe c() later 
+        eqtls.in.common = integer() 
+    }
     eqtls.different = sample(
         setdiff(1:M, snp.model.1),
         size    = ceiling((1 - frac.same.eQTLs) * k),
         replace = FALSE
     )
-    snp.model.2     = c(eqtls.in.common, eqtls.different)
-    snp.model.admix = c(eqtls.in.common,
-        sample(snp.model.1, size = floor(admix.prop.pop1 * k), replace = FALSE),
-        sample(snp.model.2, size = ceiling(admix.prop.pop2 * k), replace = FALSE)
-    )
+    snp.model.2 = c(eqtls.in.common, eqtls.different)
+
 }
 
 # specify models for pop 2 and admixed pop
-beta.2[snp.model.2]         = eqtl.effects.2
-beta.admix[snp.model.admix] = eqtl.effects.admix
+# adding 1:k ensures that k eQTLs are added
+beta.2[snp.model.2[1:k]]         = eqtl.effects.2
+
+# admixed population gets ALL eQTLs from BOTH ancestral populations!
+# for 100% shared case, this means that all 3 pops have the same k eqtls
+# for 0% shared case, then CEU and YRI share no eQTLs, but AA shares half its eQTLs with CEU and half with YRI
+# command below explicitly adds to AA model the eQTLs in correct positions and with correct effects
+# for eQTLs in common, it simply overwrites CEU effects with YRI ones
+# this is because we assume no effect heterogeneity!
+beta.admix[beta.1 != 0] = beta.1[beta.1 != 0] 
+beta.admix[beta.2 != 0] = beta.2[beta.2 != 0] 
 
 # specify the phenotype/environmental noise
 # this is parametrized by the desired heritability h2 and # of eQTLs k
@@ -506,10 +519,6 @@ pheno.sd.admix = sqrt( var( genos.admix %*% beta.admix ) * (1 - h2) / h2 )
 y.1     = genos.1 %*% beta.1 + as.matrix(rnorm(N.ancestral.min, 0, pheno.sd.1))
 y.2     = genos.2 %*% beta.2 + as.matrix(rnorm(N.ancestral.min, 0, pheno.sd.2))
 y.admix = genos.admix %*% beta.admix + as.matrix(rnorm(N.admix, 0, pheno.sd.admix))
-
-#print(y.1[1:5])
-#print(y.2[1:5])
-#print(y.admix[1:5])
 
 # run elastic net on current configuration of y, beta
 # run once for each population

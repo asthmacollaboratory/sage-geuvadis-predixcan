@@ -21,7 +21,8 @@ set -u  ## script will exit if it sees an uninitialized variable
 # ==========================================================================================
 # directories
 # ==========================================================================================
-thisdir="$(dirname $(readlink -f $0))"
+#thisdir="$(dirname $(readlink -f $0))"
+thisdir="$(readlink -f .)"
 analysisdir="${thisdir}/../../analysis"
 download_dir="${analysisdir}/download"
 bin_dir="${analysisdir}/bin"
@@ -34,7 +35,8 @@ genotypedir="${analysisdir}/genotypes"
 # binaries
 # ==========================================================================================
 HAPGEN2="${bin_dir}/hapgen2"
-RSCRIPT=$(whereis Rscript | awk '{print $2}') ## will default to system Rscript, if installed
+#RSCRIPT=$(whereis Rscript | awk '{print $2}') ## will default to system Rscript, if installed
+RSCRIPT="/usr/bin/Rscript"
 
 
 # ==========================================================================================
@@ -69,9 +71,10 @@ hm3_url="https://mathgen.stats.ox.ac.uk/wtccc-software/HM3.tgz"
 hapgen2_tarball="${download_dir}/hapgen2_x86_64.tar.gz"
 hm3_tarball="${download_dir}/HM3.tgz"
 
-nCEU_haps=10000
-nYRI_haps=10000
-
+#nCEU_haps=10000
+#nYRI_haps=10000
+nCEU_haps=$(head -n 1 ${CEU_controls} | awk '{ print NF }')
+nYRI_haps=$(head -n 1 ${YRI_controls} | awk '{ print NF }')
 
 # ==========================================================================================
 # executable code
@@ -163,18 +166,23 @@ CEU_props=("0.0" "0.1" "0.2" "0.3" "0.4" "0.5" "0.6" "0.7" "0.8" "0.9" "1.0")
 YRI_props=("1.0" "0.9" "0.8" "0.7" "0.6" "0.5" "0.4" "0.3" "0.2" "0.1" "0.0")
 ngenes=100
 gene_pad=500000 ## this is the # of base pairs in cis-region to add to gene ends
-seed=2018
-nCEU=10000
-nYRI=10000
+#nCEU=10000
+#nYRI=10000
+original_seed=2018
+nCEU=1000
+nYRI=1000
+nAA=1000
 
 # assuming that #${CEU_props[@}} == #${YRI_props[@}} here...
 for i in ${!CEU_props[@]}; do
 
     CEU_prop=${CEU_props[$i]}
     YRI_prop=${YRI_props[$i]}
+    seed=$(( ${original_seed} + ${i} ))
 
     echo "CEU proportion: ${CEU_prop}"
     echo "YRI proportion: ${YRI_prop}"
+
     $RSCRIPT $R_sample_haps \
         --CEU-haplotype-file ${CEU_controls} \
         --YRI-haplotype-file ${YRI_controls} \
@@ -189,5 +197,6 @@ for i in ${!CEU_props[@]}; do
         --num-genes ${ngenes} \
         --pad-around-genes ${gene_pad} \
         --num-CEU ${nCEU} \
-        --num-YRI ${nYRI}
+        --num-YRI ${nYRI} \
+        --num-AA ${nAA}
 done

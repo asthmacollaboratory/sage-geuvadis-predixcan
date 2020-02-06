@@ -4,7 +4,6 @@
 #$ -r y                            # -- tell the system that if a job crashes, it should be restarted
 #$ -j y                            # -- tell the system that the STDERR and STDOUT should be joined
 #$ -cwd                            # -- start the job in the current working directory
-#$ -l arch=linux-x64               # -- SGE resources (CPU type)
 # ==========================================================================================
 # coded by Kevin L. Keys (2019)
 #
@@ -27,6 +26,7 @@ output_data_dir=${output_data_dir}
 
 # other variables
 Rdata_files=${Rdata_files}
+scratchdir=${scratchdir}
 
 # ==========================================================================================
 # executable code
@@ -36,14 +36,17 @@ Rdata_files=${Rdata_files}
 echo "Date: $(date)"
 echo "Host name: $(hostname)"
 
-echo "This job will compile a list of Rdata files to ${Rdata_files}"
+echo "This job will compile a list of Rdata files"
+echo "Data directory: ${output_data_dir}"
+echo "Output path: ${Rdata_files}"
 
 # make temporary directory for "sort" command
-TMPDIR="/scratch/klkeys/list_files"
+TMPDIR="${scratchdir}/scratch_list_files"
 mkdir -p ${TMPDIR}
 
 # get list of Rdata files and save to file
-find ${output_data_dir} -type f -name "*.Rdata" | sort --temporary-directory=${TMPDIR} > ${Rdata_files}
+#find ${output_data_dir} -maxdepth 1 -type f -name "*.Rdata" -exec sort --temporary-directory=${TMPDIR} {} \+ > ${Rdata_files}
+find $(realpath ${output_data_dir}) -maxdepth 1 -type f -name "*.Rdata" -fprint ${Rdata_files}
 
 # tidy up
 rm -rf ${TMPDIR}

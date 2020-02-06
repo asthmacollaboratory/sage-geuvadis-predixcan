@@ -113,21 +113,31 @@ option_list = list(
     make_option(
         c("-z1", "--num-CEU"),
         type    = "integer",
-        default = 1000, 
+        default = 10000, 
         help    = "Number of samples to generate from CEU haplotypes [default = %default]",
         metavar = "integer"
     ),
     make_option(
         c("-z2", "--num-YRI"),
         type    = "integer",
-        default = 1000, 
+        default = 10000, 
         help    = "Number of samples to generate from YRI haplotypes [default = %default]",
+        metavar = "integer"
+    ),
+    make_option(
+        c("-z3", "--num-AA"),
+        type    = "integer",
+        default = 10000, 
+        help    = "Number of AA samples to generate from CEU/YRI haplotypes [default = %default]",
         metavar = "integer"
     )
 )
 
 opt_parser = OptionParser(option_list = option_list)
 opt = parse_args(opt_parser, convert_hyphens_to_underscores = TRUE)
+
+cat("Parsed options:\n\n")
+print(opt)
 
 # ==========================================================================================
 # script variables
@@ -143,11 +153,20 @@ seed              = opt$seed
 ceu.prop          = opt$CEU_proportion 
 yri.prop          = opt$YRI_proportion 
 genelist.path     = opt$genelist_path
-pad               = opt$pad_around_genes
-ngenes            = opt$num_genes
+pad               = as.integer(opt$pad_around_genes)
+ngenes            = as.integer(opt$num_genes)
+ceu.num           = as.integer(opt$num_CEU)
+yri.num           = as.integer(opt$num_YRI)
+aa.num            = as.integer(opt$num_AA)
 
 # set random seed
 set.seed(seed)
+
+# set output file paths
+# these geno files will contain all of the allele dosages for all chr22 genes
+aa.geno.file  = file.path(output.dir, paste0("AA.chr22.CEU_", ceu.prop, ".YRI_", yri.prop, ".geno"))
+ceu.geno.file = file.path(output.dir, "CEU.chr22.geno")
+yri.geno.file = file.path(output.dir, "YRI.chr22.geno")
 
 # load haps
 ceu.haps = fread(ceu.hap.file.path)
@@ -162,66 +181,146 @@ yri.haps = fread(yri.hap.file.path)
 # sample proportions
 sample.ceu.replacement = FALSE
 sample.yri.replacement = FALSE
-ceu.num = dim(ceu.haps)[2]
-yri.num = dim(yri.haps)[2]
+sample.aa.replacement  = FALSE
+ceu.num.haps = ncol(ceu.haps)
+yri.num.haps = ncol(yri.haps)
 
 # this allows for sampling a # of CEU haps that differs from what is in the hap file
 # everything is copesetic if the user asks for the # of CEU haps in the hap file
 # if user asks for more, then we will sample with replacement
 # in contrary case, will simply sample fewer haps
-if (opt$num_CEU != ceu.num) {
-    if (opt$num_CEU > ceu.num) {
+if (ceu.num != 2*ceu.num.haps) {
+    if (ceu.num > 2*ceu.num.haps) {
         sample.ceu.replacement = TRUE
     }
-    ceu.num = opt$num_CEU
+    #ceu.num.haps = 2*as.numeric(opt$num_CEU)
+    ceu.num.haps = min(ceu.num.haps, 2*as.numeric(opt$num_CEU))
 }
 
 # do same sampling adjustment for YRI
-if (opt$num_YRI != yri.num) {
-    if (opt$num_YRI > yri.num) {
+if (yri.num != 2*yri.num.haps) {
+    if (yri.num > 2*yri.num.haps) {
         sample.yri.replacement = TRUE
     }
-    yri.num = opt$num_YRI
+    #yri.num.haps = 2*(opt$num_YRI)
+    yri.num.haps = min(yri.num.haps, 2*(opt$num_YRI))
 }
 
+# similar sampling adjustment for AA
+# this one depends on CEU+YRI haps
+aa.num.haps = floor(ceu.prop*ceu.num.haps) + ceiling(yri.prop*yri.num.haps) 
+if (aa.num != 2*aa.num.haps) {
+    if (aa.num > 2*aa.num.haps) {
+        sample.aa.replacement = TRUE
+    }
+    aa.num.haps = min(aa.num.haps, 2*(opt$num_AA))
+}
+
+cat("will generate N = ", ceu.num, " CEU samples from ", ceu.num.haps, "haplotypes\n")
+cat("will generate N = ", yri.num, " YRI samples from ", yri.num.haps, "haplotypes\n")
+cat("will generate N = ", aa.num,  " AA samples from ",  aa.num.haps,  "haplotypes\n")
+
 # sample the haplotypes
-ceu.haps.sub = ceu.haps[,sample(1:ceu.num, floor(ceu.prop*ceu.num), replace = sample.ceu.replacement), with = FALSE]
-yri.haps.sub = yri.haps[,sample(1:yri.num, ceiling(yri.prop*yri.num), replace = sample.yri.replacement), with = FALSE]
+#ceu.haps.sub = ceu.haps[,sample(1:ceu.num.haps, floor(ceu.prop*ceu.num.haps), replace = sample.ceu.replacement), with = FALSE]
+#yri.haps.sub = yri.haps[,sample(1:yri.num.haps, ceiling(yri.prop*yri.num.haps), replace = sample.yri.replacement), with = FALSE]
+ceu.haps.sample.for.aa = sample.int(ceu.num.haps, size = floor(ceu.prop*ceu.num.haps), replace = sample.ceu.replacement)
+yri.haps.sample.for.aa = sample.int(yri.num.haps, size = ceiling(yri.prop*yri.num.haps), replace = sample.yri.replacement)
+ceu.haps.sub.for.aa = ceu.haps[,ceu.haps.sample.for.aa, with = FALSE]
+yri.haps.sub.for.aa = yri.haps[,yri.haps.sample.for.aa, with = FALSE]
+ceu.haps.sample.file.for.aa = file.path(output.dir, paste0("AA.fromCEU.chr22.CEU_", ceu.prop, ".YRI_", yri.prop, ".haps.txt"))
+yri.haps.sample.file.for.aa = file.path(output.dir, paste0("AA.fromYRI.chr22.CEU_", ceu.prop, ".YRI_", yri.prop, ".haps.txt"))
+fwrite(x = data.table(ceu.haps.sample.for.aa), file = ceu.haps.sample.file.for.aa, quote = FALSE, row.names = FALSE, col.names = FALSE)
+fwrite(x = data.table(yri.haps.sample.for.aa), file = yri.haps.sample.file.for.aa, quote = FALSE, row.names = FALSE, col.names = FALSE)
+
+cat("sampled ", ncol(ceu.haps.sub.for.aa), " haplotypes for AA from CEU per proportion ", ceu.prop, "\n")
+cat("sampled ", ncol(yri.haps.sub.for.aa), " haplotypes for AA from YRI per proportion ", yri.prop, "\n")
+
+# generate a sample of the AA haps - this will shuffle the CEU/YRI haplotypes that make AA
+# without this, then AA would just be $ceu.prop CEU ppl and $yri.prop YRI ppl
+aa.haps.sample = sample.int(aa.num.haps, size = aa.num.haps, replace = sample.aa.replacement)
+
+# save the haplotype sample order for bookkeeping
+aa.haps.sample.file = file.path(output.dir, paste0("AA.chr22.CEU_", ceu.prop, ".YRI_", yri.prop, ".haps.txt"))
+fwrite(x = data.table(aa.haps.sample), file = aa.haps.sample.file, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = " ")
 
 # slap haps together to make AA
 if (ceu.prop == 0) {
-    aa.haps = data.table(yri.haps.sub)
+    aa.haps = data.table(yri.haps.sub.for.aa)[, aa.haps.sample, with = FALSE]
 } else if (yri.prop == 0) {
-    aa.haps = data.table(ceu.haps.sub)
+    aa.haps = data.table(ceu.haps.sub.for.aa)[, aa.haps.sample, with = FALSE]
 } else {
-    aa.haps = data.table(cbind(ceu.haps.sub, yri.haps.sub))
+    ###aa.haps = data.table(cbind(ceu.haps.sub, yri.haps.sub))
+    #aa.num.haps = ncol(ceu.haps.sub) + ncol(yri.haps.sub)
+    #aa.haps = data.table(cbind(ceu.haps.sub, yri.haps.sub))[,sample.int(aa.num.haps, size = aa.num.haps, replace = FALSE), with = FALSE]
+
+    # slap the haplotypes together and then shuffle
+    aa.haps = data.table(cbind(ceu.haps.sub.for.aa, yri.haps.sub.for.aa))[, aa.haps.sample, with = FALSE]
 }
-aa.num  = dim(aa.haps)[2]
+
+# keep track of which haplotype came from where (CEU or YRI)
+aa.haps.origin = c(rep("CEU", ncol(ceu.haps.sub.for.aa)), rep("YRI", ncol(yri.haps.sub.for.aa)))[aa.haps.sample]
+
+# save the haplotype origin to file too
+aa.haps.origin.file = file.path(output.dir, paste0("AA.chr22.CEU_", ceu.prop, ".YRI_", yri.prop, ".haps.origin.txt"))
+fwrite(x = data.table(aa.haps.origin), file = aa.haps.origin.file, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = " ")
+
+aa.num.haps  = ncol(aa.haps)
+aa.num = min(ceu.num, yri.num)
+cat("will generate N = ", aa.num, "samples of AA drawn from a total of ", aa.num.haps, " haplotypes\n")
 
 # write to file
-aa.haps.file = file.path(output.dir, "AA.chr22.hap")
+aa.haps.file = file.path(output.dir, paste0("AA.chr22.CEU_", ceu.prop, ".YRI_", yri.prop, ".haps"))
 fwrite(x = aa.haps, file = aa.haps.file, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = " ")
 
 # create genotype files
 # do this by collapsing every other column 
-ceu.geno = data.table(ceu.haps[,seq(1,ceu.num,2), with = FALSE] + ceu.haps[,seq(2,ceu.num,2), with = FALSE])
-yri.geno = data.table(yri.haps[,seq(1,yri.num,2), with = FALSE] + yri.haps[,seq(2,yri.num,2), with = FALSE])
-aa.geno  = data.table(aa.haps[,seq(1,aa.num,2), with = FALSE]   + aa.haps[,seq(2,aa.num,2), with = FALSE])
+ceu.geno = data.table(ceu.haps[,seq(1,ceu.num.haps,2), with = FALSE] + ceu.haps[,seq(2,ceu.num.haps,2), with = FALSE])
+yri.geno = data.table(yri.haps[,seq(1,yri.num.haps,2), with = FALSE] + yri.haps[,seq(2,yri.num.haps,2), with = FALSE])
+aa.geno  = data.table(aa.haps[,seq(1,aa.num.haps,2), with = FALSE]   + aa.haps[,seq(2,aa.num.haps,2), with = FALSE])
+gc()
+
+ceu.haps.sample = sample.int(ceu.num.haps, size = 2*ceu.num, replace = sample.ceu.replacement)
+yri.haps.sample = sample.int(yri.num.haps, size = 2*yri.num, replace = sample.yri.replacement)
+ceu.haps.sub = ceu.haps[,ceu.haps.sample, with = FALSE]
+yri.haps.sub = yri.haps[,yri.haps.sample, with = FALSE]
+ceu.haps.sample.file = file.path(output.dir, paste0("CEU.chr22.CEU_", ceu.prop, ".YRI_", yri.prop, ".haps.txt"))
+yri.haps.sample.file = file.path(output.dir, paste0("YRI.chr22.CEU_", ceu.prop, ".YRI_", yri.prop, ".haps.txt"))
+fwrite(x = data.table(ceu.haps.sample), file = ceu.haps.sample.file, quote = FALSE, row.names = FALSE, col.names = FALSE)
+fwrite(x = data.table(yri.haps.sample), file = yri.haps.sample.file, quote = FALSE, row.names = FALSE, col.names = FALSE)
+
+ceu.geno = data.table(ceu.haps.sub[,seq(1,ncol(ceu.haps.sub),2), with = FALSE] + ceu.haps[,seq(2,ncol(ceu.haps.sub),2), with = FALSE])
+yri.geno = data.table(yri.haps.sub[,seq(1,ncol(yri.haps.sub),2), with = FALSE] + yri.haps[,seq(2,ncol(yri.haps.sub),2), with = FALSE])
+aa.geno  = data.table(aa.haps[,seq(1,ncol(aa.haps),2), with = FALSE]   + aa.haps[,seq(2,ncol(aa.haps),2), with = FALSE])
+gc()
+
+# similar to haplotypes, keep track of genotype origins
+# this of this file as a crude local ancestry estimator
+aa.geno.origin = paste(aa.haps.origin[seq(1,length(aa.haps.origin),2)], aa.haps.origin[seq(2,length(aa.haps.origin),2)], sep = "/") 
+
+# save the haplotype origin to file too
+aa.geno.origin.file = file.path(output.dir, paste0("AA.chr22.CEU_", ceu.prop, ".YRI_", yri.prop, ".geno.origin.txt"))
+fwrite(x = data.table(aa.geno.origin), file = aa.geno.origin.file, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = " ")
 
 # the $*.geno files contain SNPs in rows and genotypes in columns
-# transpose to SNP-major format (SNPs on columns
+# transpose to SNP-major format (SNPs on columns)
 ceu.geno = data.table(t(ceu.geno))
 yri.geno = data.table(t(yri.geno))
 aa.geno  = data.table(t(aa.geno))
 
-# write genotype files to file
-aa.geno.file  = file.path(output.dir, "AA.chr22.geno")
-ceu.geno.file = file.path(output.dir, "CEU.chr22.geno")
-yri.geno.file = file.path(output.dir, "YRI.chr22.geno")
+cat("made CEU genotype file with ", nrow(ceu.geno), " samples and ", ncol(ceu.geno), " SNPs\n") 
+cat("made YRI genotype file with ", nrow(yri.geno), " samples and ", ncol(yri.geno), " SNPs\n") 
+cat("made AA  genotype file with ", nrow(aa.geno), " samples and ", ncol(aa.geno), " SNPs\n") 
 
+# write genotype files to file
+# only write CEU/YRI genotypes if they do not already exist
+# this saves some time by avoiding overwriting the same file with the same information 
 fwrite(x = aa.geno,  file = aa.geno.file,  quote = FALSE, row.names = FALSE, col.names = FALSE, sep = "\t")
-fwrite(x = ceu.geno, file = ceu.geno.file, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = "\t")
-fwrite(x = yri.geno, file = yri.geno.file, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = "\t")
+if (!file.exists(ceu.geno.file)) {
+    fwrite(x = ceu.geno, file = ceu.geno.file, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = "\t")
+}
+if (!file.exists(yri.geno.file)) {
+    fwrite(x = yri.geno, file = yri.geno.file, quote = FALSE, row.names = FALSE, col.names = FALSE, sep = "\t")
+}
 
 # slap sample information onto left of subset genotype files
 # want to make a PLINK RAW file
@@ -306,6 +405,10 @@ for (i in 1:ngenes) {
 
     # save subsetted genotypes to file
     fwrite(x = aa.geno.sub,  file = aa.filename,  quote = FALSE, row.names = FALSE, sep = "\t")
-    fwrite(x = ceu.geno.sub, file = ceu.filename, quote = FALSE, row.names = FALSE, sep = "\t")
-    fwrite(x = yri.geno.sub, file = yri.filename, quote = FALSE, row.names = FALSE, sep = "\t")
+    if (!file.exists(ceu.filename)) {
+        fwrite(x = ceu.geno.sub, file = ceu.filename, quote = FALSE, row.names = FALSE, sep = "\t")
+    }
+    if (!file.exists(yri.filename)) {
+        fwrite(x = yri.geno.sub, file = yri.filename, quote = FALSE, row.names = FALSE, sep = "\t")
+    }
 }

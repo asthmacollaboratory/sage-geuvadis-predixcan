@@ -47,7 +47,7 @@ option_list = list(
         type    = "logical",
         default = NULL, 
         help    = "Do populations share all eQTLs?", 
-        metavar = "numeric"
+        metavar = "logical"
     ),
     make_option(
         c("-g", "--same-eQTL-effects"),
@@ -186,12 +186,13 @@ YRI.admix.prop    = as.numeric(opt$YRI_admixture_proportion)
 
 
 twas.output.path      = file.path(output.dir, paste0(output.filepfx, "_results.txt")) 
-twas.plot.output.path = file.path(output.dir, paste(output.filepfx, plot.type, sep = ".")) 
 
 
 # load current simulated gene expression dataset
-#load("./ELFN2_simulation_prediction_admixedpop_sameeQTLsFALSE_sameeffectsTRUE_k10_seed2018_propsharedeQTLs0.1.Rdata")
+# file name example: "ELFN2_simulation_prediction_admixedpop_sameeQTLsFALSE_sameeffectsTRUE_k10_seed2018_propsharedeQTLs0.1.Rdata"
 my.pattern = paste0("*simulation_prediction_admixedpop_sameeQTLs", same.eqtls, "_sameeffects", same.effects, "_k", num.eqtls, "_propsharedeQTLs", prop.shared.eqtl, "_CEU", CEU.admix.prop , "_YRI", YRI.admix.prop, "_seed", seed, ".Rdata")
+
+cat("Looking for files matching pattern ", my.pattern, "\n\n")
 
 rdata.files = list.files(rdata.file.dir, pattern = my.pattern, full.names = TRUE)
 ndatafiles = length(rdata.files)
@@ -206,7 +207,7 @@ for (my.file in rdata.files) {
     cat("Reading file ", my.file, "\n")
     load(my.file)
 
-# aliases 
+    # aliases 
     gene = results.this.k$gene
 
     genos.1 = results.this.k$genotypes$pop1
@@ -238,6 +239,8 @@ for (my.file in rdata.files) {
 
 }
 
+cat("Rdata files read, now simulating TWAS...\n\n")
+
 # compile lists of expression vectors into matrices
 original.expression.1      = as.data.frame(twas.simulation$original.expression.1)
 original.expression.2      = as.data.frame(twas.simulation$original.expression.2)
@@ -255,6 +258,9 @@ predicted.expression.admix.to.1 = as.data.frame(twas.simulation$predicted.expres
 predicted.expression.admix.to.2 = as.data.frame(twas.simulation$predicted.expression.admix.to.2)
 predicted.expression.admix.to.admix = as.data.frame(twas.simulation$predicted.expression.admix.to.admix)
 
+# fix random seed
+set.seed(seed)
+
 # set up simulated TWAS models 
 twas.model.1   = sample.int(ngenes, size = ncausal.genes, replace = FALSE)
 beta.twas.1    = matrix(0, ngenes, 1)
@@ -265,15 +271,11 @@ beta.twas.1[twas.model.1] = twas.effects.1
 beta.twas.2     = matrix(0, ngenes, 1)
 beta.twas.admix = matrix(0, ngenes, 1)
 
-## should pop2 and admixed pop use same eQTL effect sizes?
-## if not, then simulate new ones
-#if ( same.twas.effects ) {
-#    twas.effects.2     = twas.effects.1
-#    twas.effects.admix = twas.effects.1
-#} else { 
+# should pop2 and admixed pop use same eQTL effect sizes?
+# if not, then should simulate new ones
+# this is definitely a future interest, but for now must assume that eQTL effects are same across pops
 twas.effects.2     = effect.size 
 twas.effects.admix = effect.size 
-#}
 
 # populations should share causal genes
 twas.model.2     = twas.model.1
@@ -388,6 +390,8 @@ perform.twas.regressions = function(phenotype, expression, from.pop, to.pop, ori
 twas.noise.var = twas.noise.sd^2
 
 # simulate TWAS regressions!
+
+cat("Running TWAS...\n\n")
 twas.1.to.1     = perform.twas.regressions(twas.y.1, predicted.expression.1.to.1, "CEU", "CEU", beta.twas.1, twas.y.sd.1, twas.pheno.var.1, twas.noise.var) 
 twas.2.to.1     = perform.twas.regressions(twas.y.1, predicted.expression.2.to.1, "YRI", "CEU", beta.twas.1, twas.y.sd.1, twas.pheno.var.1, twas.noise.var) 
 twas.admix.to.1 = perform.twas.regressions(twas.y.1, predicted.expression.admix.to.1, "AA", "CEU", beta.twas.1, twas.y.sd.1, twas.pheno.var.1, twas.noise.var) 
@@ -408,7 +412,7 @@ twas.results = rbindlist(list(twas.1.to.1, twas.2.to.1, twas.admix.to.1, twas.1.
 twas.results = twas.results %>% dplyr::filter(Original_Model != 0)
 fwrite(x = twas.results, file = twas.output.path, sep = "\t", quote = FALSE, na = "NA")
 
-cat("all done!\n\n")
+cat("complete!\n\n")
 
 # save output
 #save.image(file.path(output.dir, paste(output.filepfx, "Rdata", sep = ".")))

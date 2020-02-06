@@ -4,7 +4,6 @@
 #$ -r y                            # -- tell the system that if a job crashes, it should be restarted
 #$ -j y                            # -- tell the system that the STDERR and STDOUT should be joined
 #$ -cwd                            # -- start the job in the current working directory
-#$ -l arch=linux-x64               # -- SGE resources (CPU type)
 # ==========================================================================================
 # coded by Kevin L. Keys (2019)
 #
@@ -18,7 +17,7 @@
 # ==========================================================================================
 set -o errexit # set -e, script will exit on error
 set -o nounset # set -u, script will exit if it sees an uninitialized variable
-set -o xtrace  # set -x, script will track which command is currently running
+#set -o xtrace  # set -x, script will track which command is currently running
 #ulimit -c 0 # user limits: -c covers the max size of core files created
 
 
