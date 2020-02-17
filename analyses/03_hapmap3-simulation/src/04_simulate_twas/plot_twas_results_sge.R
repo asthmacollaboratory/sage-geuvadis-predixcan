@@ -739,3 +739,13 @@ g9 = ggplot(x.power2, aes(x = YRI_proportion, y = Post_Hoc_Power, color = Train_
         )
 g9.path = file.path(output.dir, paste("twas.sim.results.power.curves.admixvary", plot.type, sep = "."))
 ggsave(g9, file = g9.path, units = "in", width = 18, height = 6)
+
+# make supplementary tables with raw power estimates for varying admixture
+admix.table.path = file.path(output.dir, "admixvary.power.supptables.txt") 
+x.power.admix.summary %>%
+    dplyr::filter(Original_Model %in% admix.effect.sizes) %>%
+    mutate(Power_CI = paste(round(Power_CI_lo, 3), round(Power_CI_hi, 3), sep = " - ")) %>%
+    dplyr::select(Train_Test, Original_Model, YRI_proportion, Power, Power_CI) %>%
+    as.data.table %>%
+    arrange(., Original_Model, Train_Test, YRI_proportion) %>%
+    fwrite(., file = admix.table.path, sep = "\t", quote = FALSE)
