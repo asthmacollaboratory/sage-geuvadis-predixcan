@@ -104,16 +104,16 @@ mkdir -p ${simulationdir}
 #
 ## extract HM3 to data directory
 #tar -xzvf ${hm3_tarball} -C ${datadir}
-
-# grab genes from chromosome 22
-# in principle, this script works for any gene and any suitable padding around the gene
-# by "pad" we mean the additional bases in the cis region around the gene
-# the default here is for chr22 with 500Kb pad (note: another 500Kb is added later!)
-# change these defaults with optional arguments to get_chr22_genes.R, e.g.
-# --cis-add 100 (adds 100 *base pairs* not Kb)
-# --chr 21
+#
+## grab genes from chromosome 22
+## in principle, this script works for any gene and any suitable padding around the gene
+## by "pad" we mean the additional bases in the cis region around the gene
+## the default here is for chr22 with 500Kb pad (note: another 500Kb is added later!)
+## change these defaults with optional arguments to get_chr22_genes.R, e.g.
+## --cis-add 100 (adds 100 *base pairs* not Kb)
+## --chr 21
 #$RSCRIPT $R_get_genes --out ${genelist}
-
+#
 ## a brief note on the choice of numbers for option -Ne
 ## (taken from http://mathgen.stats.ox.ac.uk/genetics_software/hapgen/hapgen2.html)
 ##
@@ -149,8 +149,6 @@ mkdir -p ${simulationdir}
 #    -dl 14560203 1 1.0 2.0 \
 #    -n ${nYRI_haps} 1 \
 #    -Ne 17469
-#
-
 
 #### download required files from cloud directory
 #curl -L https://ucsf.box.com/shared/static/iylsvalqrofmga8zsa8c56loj8lwznch.haps > ${CEU_controls}
@@ -201,5 +199,4 @@ for i in ${!CEU_props[@]}; do
         --num-CEU ${nCEU} \
         --num-YRI ${nYRI} \
         --num-AA ${nAA}
-
 done

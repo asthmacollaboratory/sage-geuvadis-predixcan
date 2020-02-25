@@ -538,7 +538,7 @@ summary(sage.gtex7.r2)
 # now construct plot
 sage.gtex7.plot = sage.gtex7.r2 %>%
     ggplot(., aes(x = Test_R2, y = GTEx_v7)) +
-        geom_point() +
+        geom_point(color = "black") +
         # add regression line (blue) to compare points
         geom_smooth(se = TRUE, method = "lm") +
         # add y=x line (red dotted)
@@ -547,9 +547,93 @@ sage.gtex7.plot = sage.gtex7.r2 %>%
         xlab(bquote("PredictDB training "~ R^2 ~ " in GTEx v7")) +
         ylab(bquote("PrediXcan " ~ R^2 ~ " in SAGE"))
 
-# save plot to file
+
+# repeat for MESA
+sage.mesa.all.r2 = r2.all %>%
+    filter(Prediction.Weights %in% c("MESA_ALL", "Test: MESA_ALL")) %>%
+    dcast(., Gene ~ Prediction.Weights) %>%
+    filter(`Test: MESA_ALL` > 0.2) %>%
+    as.data.table %>%
+    rename(., "Test_R2" = "Test: MESA_ALL")
+
+sage.mesa.all.plot = sage.mesa.all.r2 %>% 
+    ggplot(., aes(x = Test_R2, y = MESA_ALL)) +
+        geom_point(color = "darkred") +
+        # add regression line (blue) to compare points
+        geom_smooth(se = TRUE, method = "lm") +
+        # add y=x line (red dotted)
+        geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +
+        ggtitle("PredictDB performance in SAGE with MESA_ALL weights") +
+        xlab(bquote("PredictDB training "~ R^2 ~ " in MESA_ALL")) +
+        ylab(bquote("PrediXcan " ~ R^2 ~ " in SAGE"))
+
+sage.mesa.afa.r2 = r2.all %>%
+    filter(Prediction.Weights %in% c("MESA_AFA", "Test: MESA_AFA")) %>%
+    dcast(., Gene ~ Prediction.Weights) %>%
+    filter(`Test: MESA_AFA` > 0.2) %>%
+    as.data.table %>%
+    rename(., "Test_R2" = "Test: MESA_AFA")
+
+sage.mesa.afa.plot = sage.mesa.afa.r2 %>% 
+    ggplot(., aes(x = Test_R2, y = MESA_AFA)) +
+        geom_point(color = "darkgreen") +
+        # add regression line (blue) to compare points
+        geom_smooth(se = TRUE, method = "lm") +
+        # add y=x line (red dotted)
+        geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +
+        ggtitle("PredictDB performance in SAGE with MESA_AFA weights") +
+        xlab(bquote("PredictDB training "~ R^2 ~ " in MESA_AFA")) +
+        ylab(bquote("PrediXcan " ~ R^2 ~ " in SAGE"))
+
+sage.mesa.afhi.r2 = r2.all %>%
+    filter(Prediction.Weights %in% c("MESA_AFHI", "Test: MESA_AFHI")) %>%
+    dcast(., Gene ~ Prediction.Weights) %>%
+    filter(`Test: MESA_AFHI` > 0.2) %>%
+    as.data.table %>%
+    rename(., "Test_R2" = "Test: MESA_AFHI")
+
+sage.mesa.afhi.plot = sage.mesa.afhi.r2 %>% 
+    ggplot(., aes(x = Test_R2, y = MESA_AFHI)) +
+        geom_point(color = "goldenrod") +
+        # add regression line (blue) to compare points
+        geom_smooth(se = TRUE, method = "lm") +
+        # add y=x line (red dotted)
+        geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +
+        ggtitle("PredictDB performance in SAGE with MESA_AFHI weights") +
+        xlab(bquote("PredictDB training "~ R^2 ~ " in MESA_AFHI")) +
+        ylab(bquote("PrediXcan " ~ R^2 ~ " in SAGE"))
+
+sage.mesa.cau.r2 = r2.all %>%
+    filter(Prediction.Weights %in% c("MESA_CAU", "Test: MESA_CAU")) %>%
+    dcast(., Gene ~ Prediction.Weights) %>%
+    filter(`Test: MESA_CAU` > 0.2) %>%
+    as.data.table %>%
+    rename(., "Test_R2" = "Test: MESA_CAU")
+
+sage.mesa.cau.plot = sage.mesa.cau.r2 %>% 
+    ggplot(., aes(x = Test_R2, y = MESA_CAU)) +
+        geom_point(color = "purple") +
+        # add regression line (blue) to compare points
+        geom_smooth(se = TRUE, method = "lm") +
+        # add y=x line (red dotted)
+        geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +
+        ggtitle("PredictDB performance in SAGE with MESA_CAU weights") +
+        xlab(bquote("PredictDB training "~ R^2 ~ " in MESA_CAU")) +
+        ylab(bquote("PrediXcan " ~ R^2 ~ " in SAGE"))
+
+
+# save plots to file
 sage.gtex7.plot.path = file.path(output.dir, paste0("sage.predixcan.r2.gtex7.dotplot.", plot.type))
-ggsave(plot = sage.gtex7.plot.path, filename = sage.gtex7.plot.path, dpi = 300, type = "cairo") 
+sage.mesa.all.plot.path = file.path(output.dir, paste0("sage.predixcan.r2.mesaall.dotplot.", plot.type))
+sage.mesa.afa.plot.path = file.path(output.dir, paste0("sage.predixcan.r2.mesaafa.dotplot.", plot.type))
+sage.mesa.afhi.plot.path = file.path(output.dir, paste0("sage.predixcan.r2.mesaafhi.dotplot.", plot.type))
+sage.mesa.cau.plot.path = file.path(output.dir, paste0("sage.predixcan.r2.mesacau.dotplot.", plot.type))
+
+ggsave(plot = sage.gtex7.plot, filename = sage.gtex7.plot.path, dpi = 300, type = "cairo") 
+ggsave(plot = sage.mesa.all.plot, filename = sage.mesa.all.plot.path, dpi = 300, type = "cairo") 
+ggsave(plot = sage.mesa.afa.plot, filename = sage.mesa.afa.plot.path, dpi = 300, type = "cairo") 
+ggsave(plot = sage.mesa.afhi.plot, filename = sage.mesa.afhi.plot.path, dpi = 300, type = "cairo") 
+ggsave(plot = sage.mesa.cau.plot, filename = sage.mesa.cau.plot.path, dpi = 300, type = "cairo") 
 
 # save Rdata file
 save.image(rdata.path)
