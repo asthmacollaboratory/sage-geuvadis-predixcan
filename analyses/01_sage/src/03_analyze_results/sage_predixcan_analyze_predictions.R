@@ -111,7 +111,13 @@ plot.boxplot.r2 = function(x, ngenes, scale.fill.palette, boxplot.labels) {
         scale_fill_manual(values = scale.fill.palette) +
         scale_x_discrete(labels = boxplot.labels) +
         ylim(-0.1, 1) +
-        theme(legend.position = "none")
+        theme(
+            legend.position = "none",
+            axis.text.x = element_text(size = 10),
+            axis.text.y = element_text(size = 10),
+            axis.title.x = element_text(size = 12),
+            axis.title.y = element_text(size = 12)
+        )
 
     return(my.boxplot)
 }
@@ -301,7 +307,13 @@ my.boxplot.r2 = ggplot(r2.all, aes(x = Prediction.Weights, y = R2, fill = Predic
     scale_fill_manual(values = cbPalette) +
     scale_x_discrete(labels = my.boxplot.labels) +
     ylim(-0.1, 1) +
-    theme(legend.position = "none")
+    theme(
+        legend.position = "none",
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title.x = element_text(size = 12),
+        axis.title.y = element_text(size = 12)
+    )
 
 my.violinplot.r2 = ggplot(r2.all, aes(x = Prediction.Weights, y = R2)) +
     geom_violin() +
@@ -345,7 +357,13 @@ my.boxplot.r2.commongenes = ggplot(r2.commongenes, aes(x = Prediction.Weights, y
     scale_fill_manual(values = cbPalette) +
     scale_x_discrete(labels = my.boxplot.labels) +
     ylim(-0.1, 1) +
-    theme(legend.position = "none")
+    theme(
+        legend.position = "none",
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title.x = element_text(size = 12),
+        axis.title.y = element_text(size = 12)
+    )
 
 my.violinplot.r2.commongenes = ggplot(r2.commongenes, aes(x = Prediction.Weights, y = R2)) +
     geom_violin() +
@@ -395,7 +413,13 @@ my.boxplot.rho = ggplot(rho.all, aes(x = Prediction.Weights, y = Correlation, fi
     ylab(expression(paste("Correlations (Spearman ", rho, ")"))) +
     ggtitle(paste0("Distribution of correlations across different prediction weight sets for ", ngenes.rho, " genes")) +
     scale_fill_manual(values = cbPalette) +
-    theme(legend.position = "none") +
+    theme(
+        legend.position = "none",
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title.x = element_text(size = 12),
+        axis.title.y = element_text(size = 12)
+    ) +
     scale_x_discrete(labels = my.boxplot.labels)
 my.violinplot.rho = ggplot(rho.all, aes(x = Prediction.Weights, y = Correlation)) +
     geom_violin() +
@@ -437,7 +461,13 @@ my.boxplot.rho.commongenes = ggplot(rho.commongenes, aes(x = Prediction.Weights,
     ylab(expression(paste("Correlations (Spearman ", rho, ")"))) +
     ggtitle(paste0("Distribution of correlations across different prediction weight sets for ", ncommongenes.rho, " genes in common")) +
     scale_fill_manual(values = cbPalette) +
-    theme(legend.position = "none") +
+    theme(
+        legend.position = "none",
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title.x = element_text(size = 12),
+        axis.title.y = element_text(size = 12)
+    ) +
     scale_x_discrete(labels = my.boxplot.labels)
 my.violinplot.rho.commongenes = ggplot(rho.commongenes, aes(x = Prediction.Weights, y = Correlation)) +
     geom_violin() +
@@ -495,7 +525,13 @@ my.boxplot.r2.commongenes = ggplot(r2.commongenes.poscorr, aes(x = Prediction.We
     scale_fill_manual(values = cbPalette) +
     scale_x_discrete(labels = my.boxplot.labels) +
     ylim(-0.1, 1) +
-    theme(legend.position = "none")
+    theme(
+        legend.position = "none",
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title.x = element_text(size = 12),
+        axis.title.y = element_text(size = 12)
+    )
 
 my.violinplot.r2.commongenes = ggplot(r2.commongenes.poscorr, aes(x = Prediction.Weights, y = R2)) +
     geom_violin() +

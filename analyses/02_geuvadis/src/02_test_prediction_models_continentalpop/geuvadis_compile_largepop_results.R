@@ -183,8 +183,18 @@ for (i in 1:n) {
     setkey(datatables[[i]], Gene, P.value, R2, Spearman.rho, Train_Pop, Test_Pop)
 }
 
-# merge data frames together and save to file
+# merge data frames together 
 geuvadis.predictions = Reduce(function(x,y) {merge(x, y, all = TRUE)}, datatables)
+
+# want to add two kinds of FDR-adjusted p-values:
+# (1) q-values across all gene models and all train-test combos; and
+# (2) q-values across gene models within each train-test combo (e.g. q-values for AFR to AFR, and then q-values for AFR to EUR278, etc).
+geuvadis.predictions = geuvadis.predictions %>%
+    mutate(Q.value = p.adjust(P.value, method = "fdr")) %>%
+    group_by(Train_Pop, Test_Pop) %>%
+    mutate(Q.value.group = p.adjust(P.value, method = "fdr"))
+
+# finally, save results to file
 fwrite(x = geuvadis.predictions, file = output.path.predictions, row.names = FALSE, quote = FALSE, col.names = TRUE, sep = "\t") 
 
 # summarize prediction results
@@ -259,3 +269,35 @@ poscorr.dunn.test.results = geuvadis.results %>%
 # 0.EUR_EUR - 1.EUR_EUR (predictions within EUR, comparing in/not in poscorr genes)
 # 0.AFR_AFR - 1.AFR_AFR (predictions within AFR, *...*)
 fwrite(x = poscorr.dunn.test.results, file = paste(output.path.r2.poscorr.commongenes, "dunntest.results", sep = "."), sep = "\t", quote = FALSE)
+
+# using these results, can ask questions such as which testing population is better predicted from the same training population
+# various ways to do this, could use p-values, distributions of R2, etc.
+# one easy way for comparing results for two test populations is to ask which one has the higher R2
+# can try this with AFR to (FIN, EUR278)
+
+afr2eur278 = geuvadis.results %>%
+    dplyr::filter(Gene %in% transcripts[[1]] & Spearman.rho > 0 & Train_Pop == "AFR" & Test_Pop == "EUR278") %>%
+    dplyr::select(Gene, R2) %>%
+    rename(R2_EUR278 = "R2") %>%
+    as.data.table
+afr2fin = geuvadis.results %>%
+    dplyr::filter(Gene %in% transcripts[[1]] & Spearman.rho > 0 & Train_Pop == "AFR" & Test_Pop == "FIN") %>%
+    dplyr::select(Gene, R2) %>%
+    rename(R2_FIN = "R2") %>%
+    as.data.table
+
+# merge the data frames and add a boolean vector of which genes are better predicted in FIN
+afr.predictions = merge(afr2eur278, afr2fin, by = "Gene") %>%
+    mutate(FIN_better_than_EUR278 = R2_FIN > R2_EUR278)
+
+# will use this boolean vector to answer simple question: is FIN more likely to be better predicted than EUR278?
+# think of this as a sum of coin flips (a binomial test)
+# estimate Agresti-Coull confidence interval around probability of "success" = R2_FIN > R2_EUR278
+# https://en.wikipedia.org/wiki/Binomial_proportion_confidence_interval
+fin.vs.eur289.n = sum(afr.predictions$FIN_better_than_EUR278, na.rm = TRUE) ## = 1243
+fin.vs.eur289.mean = mean(afr.predictions$FIN_better_than_EUR278, na.rm = TRUE) ## this is p = X / n for X successes
+z = 1.96 ## corresponds to alpha = 0.05 and 95% CI
+n.agresti = nrow(afr.predictions) + z*z
+p.agresti = (1 / n.agresti) * (fin.vs.eur289.n + z*z/2) ## p = 0.6108108
+var.agresti = p.agresti / n.agresti * (1 - p.agresti) 
+fin.vs.eur289.ci = p.agresti + z*c(-sqrt(var.agresti), sqrt(var.agresti)) ## [ 0.5894359, 0.6317681 ] 
